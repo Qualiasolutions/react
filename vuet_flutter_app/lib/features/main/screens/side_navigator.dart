@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:vuet_flutter/core/utils/logger.dart';
 import 'package:vuet_flutter/features/user/providers/user_provider.dart';
+// Settings
+import 'package:vuet_flutter/features/settings/screens/settings_screen.dart';
 
 // Tab screens
 import 'package:vuet_flutter/features/home/screens/home_screen.dart';
@@ -360,8 +362,7 @@ class _SideNavigatorState extends ConsumerState<SideNavigator> {
                     leading: const Icon(Icons.settings_outlined),
                     title: const Text('Settings'),
                     onTap: () {
-                      // Navigate to settings
-                      Logger.debug('Navigate to settings');
+                      _navigateToSettings();
                     },
                   ),
 
@@ -454,3 +455,24 @@ class _SideNavigatorState extends ConsumerState<SideNavigator> {
     );
   }
 }
+  /// Close the drawer if it is currently open.
+  void _closeDrawer() {
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+      Navigator.of(context).pop(); // close the drawer
+    }
+  }
+
+  /// Navigate to the settings screen with proper logging and back-navigation
+  void _navigateToSettings() {
+    Logger.debug('Navigate to Settings');
+
+    // Ensure drawer is closed (desktop) or just proceed (mobile)
+    _closeDrawer();
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const SettingsScreen(),
+      ),
+    );
+  }
+
