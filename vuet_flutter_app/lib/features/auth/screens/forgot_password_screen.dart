@@ -10,7 +10,7 @@ import 'package:vuet_flutter/features/auth/providers/auth_provider.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
-  const ForgotPasswordScreen({Key? key}) : super(key: key);
+  const ForgotPasswordScreen({super.key});
 
   @override
   ConsumerState<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();

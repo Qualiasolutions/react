@@ -6,7 +6,7 @@ import 'package:vuet_flutter/core/theme/app_theme.dart';
 import 'package:vuet_flutter/core/utils/error_handler.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
-  const SignupScreen({Key? key}) : super(key: key);
+  const SignupScreen({super.key});
 
   @override
   ConsumerState<SignupScreen> createState() => _SignupScreenState();

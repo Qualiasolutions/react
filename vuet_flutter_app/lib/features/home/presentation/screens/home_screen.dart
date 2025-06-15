@@ -6,7 +6,7 @@ import 'package:vuet_flutter/core/theme/app_theme.dart';
 import 'package:vuet_flutter/features/auth/domain/providers/auth_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

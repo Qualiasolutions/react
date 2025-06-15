@@ -5,7 +5,7 @@ import 'package:vuet_flutter/features/auth/data/repositories/auth_repository.dar
 import 'package:vuet_flutter/core/theme/app_theme.dart'; // Import AppTheme for colors and typography
 
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();

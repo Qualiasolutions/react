@@ -161,7 +161,7 @@ class AuthState {
 
 // Main app
 class VuetApp extends ConsumerWidget {
-  const VuetApp({Key? key}) : super(key: key);
+  const VuetApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -255,7 +255,7 @@ class VuetApp extends ConsumerWidget {
 
 // Splash Screen
 class SplashScreen extends StatelessWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -335,7 +335,7 @@ class SplashScreen extends StatelessWidget {
 
 // Login Screen
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -528,7 +528,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
 // Signup Screen
 class SignupScreen extends ConsumerStatefulWidget {
-  const SignupScreen({Key? key}) : super(key: key);
+  const SignupScreen({super.key});
 
   @override
   ConsumerState<SignupScreen> createState() => _SignupScreenState();
@@ -742,7 +742,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
 // Home Screen
 class HomeScreen extends ConsumerWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -964,7 +964,7 @@ class HomeScreen extends ConsumerWidget {
 
 // Categories Screen (Placeholder)
 class CategoriesScreen extends StatelessWidget {
-  const CategoriesScreen({Key? key}) : super(key: key);
+  const CategoriesScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -981,7 +981,7 @@ class CategoriesScreen extends StatelessWidget {
 
 // Tasks Screen (Placeholder)
 class TasksScreen extends StatelessWidget {
-  const TasksScreen({Key? key}) : super(key: key);
+  const TasksScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -1001,9 +1001,9 @@ class ErrorScreen extends StatelessWidget {
   final Exception? error;
   
   const ErrorScreen({
-    Key? key,
+    super.key,
     this.error,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

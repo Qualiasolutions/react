@@ -11,16 +11,16 @@ import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:vuet_flutter/core/constants/app_constants.dart';
 import 'package:vuet_flutter/core/theme/app_theme.dart';
 import 'package:vuet_flutter/core/utils/logger.dart';
-import 'package:vuet_flutter/data/models/task_model.dart';
+import 'package:vuet_flutter/features/tasks/data/models/task_model.dart';
 import 'package:vuet_flutter/features/tasks/providers/tasks_provider.dart';
 
 class TaskDetailScreen extends ConsumerStatefulWidget {
   final String taskId;
 
   const TaskDetailScreen({
-    Key? key,
+    super.key,
     required this.taskId,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<TaskDetailScreen> createState() => _TaskDetailScreenState();
@@ -39,7 +39,8 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Task'),
-        content: const Text('Are you sure you want to delete this task? This action cannot be undone.'),
+        content: const Text(
+            'Are you sure you want to delete this task? This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -144,31 +145,36 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                             label: 'Type',
                             value: task.type.toDbString().replaceAll('_', ' '),
                           ),
-                          if (task.description != null && task.description!.isNotEmpty)
+                          if (task.description != null &&
+                              task.description!.isNotEmpty)
                             _buildDetailRow(
                               icon: Icons.notes,
                               label: 'Description',
                               value: task.description!,
                             ),
-                          if (task.location != null && task.location!.isNotEmpty)
+                          if (task.location != null &&
+                              task.location!.isNotEmpty)
                             _buildDetailRow(
                               icon: Icons.location_on,
                               label: 'Location',
                               value: task.location!,
                             ),
-                          if (task.contactName != null && task.contactName!.isNotEmpty)
+                          if (task.contactName != null &&
+                              task.contactName!.isNotEmpty)
                             _buildDetailRow(
                               icon: Icons.person,
                               label: 'Contact',
                               value: task.contactName!,
                             ),
-                          if (task.contactEmail != null && task.contactEmail!.isNotEmpty)
+                          if (task.contactEmail != null &&
+                              task.contactEmail!.isNotEmpty)
                             _buildDetailRow(
                               icon: Icons.email,
                               label: 'Contact Email',
                               value: task.contactEmail!,
                             ),
-                          if (task.contactPhone != null && task.contactPhone!.isNotEmpty)
+                          if (task.contactPhone != null &&
+                              task.contactPhone!.isNotEmpty)
                             _buildDetailRow(
                               icon: Icons.phone,
                               label: 'Contact Phone',
@@ -178,7 +184,8 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                             _buildDetailRow(
                               icon: Icons.calendar_today,
                               label: 'Due Date',
-                              value: DateFormat('MMM d, yyyy').format(task.dueDate!),
+                              value: DateFormat('MMM d, yyyy')
+                                  .format(task.dueDate!),
                             ),
                           if (task.urgency != null)
                             _buildDetailRow(
@@ -190,17 +197,20 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                             icon: Icons.check_circle_outline,
                             label: 'Completed',
                             value: task.completed ? 'Yes' : 'No',
-                            valueColor: task.completed ? Colors.green : Colors.red,
+                            valueColor:
+                                task.completed ? Colors.green : Colors.red,
                           ),
                           _buildDetailRow(
                             icon: Icons.calendar_today,
                             label: 'Created At',
-                            value: DateFormat('MMM d, yyyy HH:mm').format(task.createdAt),
+                            value: DateFormat('MMM d, yyyy HH:mm')
+                                .format(task.createdAt),
                           ),
                           _buildDetailRow(
                             icon: Icons.update,
                             label: 'Last Updated',
-                            value: DateFormat('MMM d, yyyy HH:mm').format(task.updatedAt),
+                            value: DateFormat('MMM d, yyyy HH:mm')
+                                .format(task.updatedAt),
                           ),
                         ],
                       ),
@@ -265,19 +275,22 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                             _buildDetailRow(
                               icon: Icons.numbers,
                               label: 'Interval',
-                              value: '${task.recurrence!.intervalLength} ${task.recurrence!.recurrence.toDbString().toLowerCase()}',
+                              value:
+                                  '${task.recurrence!.intervalLength} ${task.recurrence!.recurrence.toDbString().toLowerCase()}',
                             ),
                             if (task.recurrence!.earliestOccurrence != null)
                               _buildDetailRow(
                                 icon: Icons.date_range,
                                 label: 'Starts',
-                                value: DateFormat('MMM d, yyyy').format(task.recurrence!.earliestOccurrence!),
+                                value: DateFormat('MMM d, yyyy').format(
+                                    task.recurrence!.earliestOccurrence!),
                               ),
                             if (task.recurrence!.latestOccurrence != null)
                               _buildDetailRow(
                                 icon: Icons.date_range,
                                 label: 'Ends',
-                                value: DateFormat('MMM d, yyyy').format(task.recurrence!.latestOccurrence!),
+                                value: DateFormat('MMM d, yyyy')
+                                    .format(task.recurrence!.latestOccurrence!),
                               ),
                           ],
                         ),

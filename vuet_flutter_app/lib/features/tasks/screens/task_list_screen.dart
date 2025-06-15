@@ -12,17 +12,18 @@ import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:vuet_flutter/core/constants/app_constants.dart';
 import 'package:vuet_flutter/core/theme/app_theme.dart';
 import 'package:vuet_flutter/core/utils/logger.dart';
-import 'package:vuet_flutter/data/models/task_model.dart';
+import 'package:vuet_flutter/features/tasks/data/models/task_model.dart';
 import 'package:vuet_flutter/features/tasks/providers/tasks_provider.dart';
 
 class TaskListScreen extends ConsumerStatefulWidget {
-  const TaskListScreen({Key? key}) : super(key: key);
+  const TaskListScreen({super.key});
 
   @override
   ConsumerState<TaskListScreen> createState() => _TaskListScreenState();
 }
 
-class _TaskListScreenState extends ConsumerState<TaskListScreen> with SingleTickerProviderStateMixin {
+class _TaskListScreenState extends ConsumerState<TaskListScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -66,18 +67,125 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> with SingleTick
     try {
       EasyLoading.show(status: 'Updating task...');
       final tasksNotifier = ref.read(tasksProvider.notifier);
-      if (task.completed) {
-        // If already completed, assume uncompleting (not directly supported by current API, but for UI)
-        // In a real app, you'd have an uncompleteTask method or similar
-        EasyLoading.showInfo('Uncompleting tasks is not yet supported.');
-      } else {
-        await tasksNotifier.completeTask(task.id);
-        EasyLoading.showSuccess('Task completed!');
-      }
+      await tasksNotifier.completeTask(task.id);
+      EasyLoading.showSuccess('Task completed!');
     } catch (e, st) {
       Logger.error('Failed to toggle task completion', e, st);
       EasyLoading.showError('Failed to update task: $e');
     }
+  }
+
+  Color _getTaskTypeColor(TaskType type) {
+    switch (type) {
+      case TaskType.task:
+        return const Color(0xFF4CAF50);
+      case TaskType.appointment:
+        return const Color(0xFF9C27B0);
+      case TaskType.dueDate:
+        return const Color(0xFFF44336);
+      case TaskType.flight:
+        return const Color(0xFF2196F3);
+      case TaskType.train:
+        return const Color(0xFF009688);
+      case TaskType.hotel:
+        return const Color(0xFFFF9800);
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _formatTaskType(TaskType type) {
+    String label = type.toString().split('.').last;
+    label = label.replaceAll('_', ' ');
+    return label
+        .split(' ')
+        .map((word) => word.isNotEmpty
+            ? word[0].toUpperCase() + word.substring(1).toLowerCase()
+            : '')
+        .join(' ');
+  }
+
+  Widget _buildTaskDateInfo(TaskModel task) {
+    return task.when(
+      fixed: (id,
+          title,
+          type,
+          notes,
+          location,
+          contactName,
+          contactEmail,
+          contactPhone,
+          hiddenTag,
+          tags,
+          routineId,
+          createdAt,
+          updatedAt,
+          startDatetime,
+          endDatetime,
+          startTimezone,
+          endTimezone,
+          startDate,
+          endDate,
+          date,
+          duration) {
+        if (startDatetime != null) {
+          return Text(
+            'Start: ${DateFormat('MMM d, yyyy h:mm a').format(startDatetime)}',
+            style: TextStyle(
+              fontSize: 12.sp,
+              color: Colors.grey[600],
+            ),
+          );
+        } else if (startDate != null) {
+          return Text(
+            'Date: ${DateFormat('MMM d, yyyy').format(startDate)}',
+            style: TextStyle(
+              fontSize: 12.sp,
+              color: Colors.grey[600],
+            ),
+          );
+        }
+        return const SizedBox.shrink();
+      },
+      flexible: (id,
+          title,
+          type,
+          notes,
+          location,
+          contactName,
+          contactEmail,
+          contactPhone,
+          hiddenTag,
+          tags,
+          routineId,
+          createdAt,
+          updatedAt,
+          earliestActionDate,
+          dueDate,
+          duration,
+          urgency) {
+        if (dueDate != null) {
+          final isOverdue = dueDate.isBefore(DateTime.now());
+          return Text(
+            'Due: ${DateFormat('MMM d, yyyy').format(dueDate)}',
+            style: TextStyle(
+              fontSize: 12.sp,
+              color: isOverdue ? Colors.red : Colors.grey[600],
+              fontWeight: isOverdue ? FontWeight.w600 : FontWeight.normal,
+            ),
+          );
+        } else if (earliestActionDate != null) {
+          return Text(
+            'Earliest: ${DateFormat('MMM d, yyyy').format(earliestActionDate)}',
+            style: TextStyle(
+              fontSize: 12.sp,
+              color: Colors.grey[600],
+            ),
+          );
+        }
+        return const SizedBox.shrink();
+      },
+    );
   }
 
   @override
@@ -108,9 +216,12 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> with SingleTick
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildTaskList(overdueTasks, tasksState.isLoading, 'No overdue tasks.'),
-          _buildTaskList(todayTasks, tasksState.isLoading, 'No tasks for today.'),
-          _buildTaskList(upcomingTasks, tasksState.isLoading, 'No upcoming tasks.'),
+          _buildTaskList(
+              overdueTasks, tasksState.isLoading, 'No overdue tasks.'),
+          _buildTaskList(
+              todayTasks, tasksState.isLoading, 'No tasks for today.'),
+          _buildTaskList(
+              upcomingTasks, tasksState.isLoading, 'No upcoming tasks.'),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -124,7 +235,8 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> with SingleTick
     );
   }
 
-  Widget _buildTaskList(List<TaskModel> tasks, bool isLoading, String emptyMessage) {
+  Widget _buildTaskList(
+      List<TaskModel> tasks, bool isLoading, String emptyMessage) {
     if (isLoading) {
       return const Center(
         child: CircularProgressIndicator(
@@ -177,30 +289,33 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> with SingleTick
           shape: AppTheme.lightTheme.cardTheme.shape,
           child: ListTile(
             contentPadding: EdgeInsets.all(UIConstants.paddingM.w),
-            leading: Checkbox(
-              value: task.completed,
-              onChanged: (bool? value) {
-                if (value != null) {
-                  _toggleTaskCompletion(task);
-                }
-              },
-              activeColor: AppTheme.primaryColor,
+            leading: Icon(
+              Icons.task_alt,
+              color: _getTaskTypeColor(task.type),
+              size: 24.sp,
             ),
             title: Text(
               task.title,
               style: TextStyle(
                 fontSize: 16.sp,
                 fontWeight: FontWeight.bold,
-                decoration: task.completed ? TextDecoration.lineThrough : null,
-                color: task.completed ? Colors.grey : AppTheme.darkTextColor,
+                color: AppTheme.darkTextColor,
               ),
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (task.description != null && task.description!.isNotEmpty)
+                Text(
+                  _formatTaskType(task.type),
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    color: _getTaskTypeColor(task.type),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                if (task.notes != null && task.notes!.isNotEmpty)
                   Text(
-                    task.description!,
+                    task.notes!,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -208,16 +323,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> with SingleTick
                       color: Colors.grey[700],
                     ),
                   ),
-                if (task.dueDate != null)
-                  Text(
-                    'Due: ${DateFormat('MMM d, yyyy').format(task.dueDate!)}',
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      color: task.dueDate!.isBefore(DateTime.now()) && !task.completed
-                          ? Colors.red
-                          : Colors.grey[600],
-                    ),
-                  ),
+                _buildTaskDateInfo(task),
               ],
             ),
             trailing: const Icon(Icons.chevron_right),

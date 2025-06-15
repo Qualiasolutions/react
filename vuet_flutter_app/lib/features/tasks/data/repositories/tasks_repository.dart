@@ -4,7 +4,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide Provider;
 import 'package:vuet_flutter/core/utils/logger.dart';
-import 'package:vuet_flutter/data/models/task_model.dart';
+import 'package:vuet_flutter/features/tasks/data/models/task_model.dart';
 import 'package:vuet_flutter/features/auth/providers/auth_provider.dart';
 
 /// Abstract class for Task Repository
@@ -22,8 +22,7 @@ abstract class BaseTasksRepository {
   Future<void> deleteTask(String taskId);
   Future<void> completeTask(String taskId, {int? recurrenceIndex});
   Future<void> markTaskPartiallyComplete(String taskId, {int? recurrenceIndex});
-  Future<void> addReminder(String taskId, TaskReminder reminder);
-  Future<void> removeReminder(String reminderId);
+
   Future<List<TaskModel>> searchTasks(String query);
   Future<List<TaskModel>> fetchTasksForEntity(String entityId);
   Future<List<TaskModel>> fetchOverdueTasks();
@@ -51,36 +50,21 @@ class SupabaseTasksRepository implements BaseTasksRepository {
         throw Exception('User not authenticated');
       }
 
-      var query = _supabase.from('tasks').select('''
-        *,
-        recurrences!left(*),
-        completions:task_completion_forms!left(*),
-        reminders:task_reminders!left(*),
-        task_members!left(member_id),
-        task_entities!left(entity_id)
-      ''');
-
-      // Filter by current user's tasks (either owner or member)
-      query = query.or(
-          'task_members.member_id.eq.$_currentUserId,task_entities.entity_id.in.(select id from entities where owner_id.eq.$_currentUserId)');
+      var query = _supabase.from('tasks').select('*');
 
       if (userId != null) {
-        query = query.eq('task_members.member_id', userId);
+        // Filter by user tasks through task_members table
+        query = query.eq('user_id', userId);
       }
 
       if (entityId != null) {
-        query = query.eq('task_entities.entity_id', entityId);
+        // Filter by entity tasks through task_entities table
+        query = query.eq('entity_id', entityId);
       }
 
       if (dueDate != null) {
-        query = query.eq('due_date', dueDate.toIso8601String().split('T').first);
-      }
-
-      if (!includeCompleted) {
-        // This is a simplified check. A more robust solution would involve
-        // checking if the latest completion form marks it as incomplete.
-        // For now, we assume tasks without completion forms are incomplete.
-        query = query.eq('completed', false);
+        query =
+            query.eq('due_date', dueDate.toIso8601String().split('T').first);
       }
 
       if (searchQuery != null && searchQuery.isNotEmpty) {
@@ -89,7 +73,9 @@ class SupabaseTasksRepository implements BaseTasksRepository {
 
       final response = await query.order('created_at', ascending: false);
 
-      return (response as List).map((json) => TaskModel.fromJson(json)).toList();
+      return (response as List)
+          .map((json) => TaskModel.fromJson(json))
+          .toList();
     } catch (e, st) {
       Logger.error('Failed to fetch tasks', e, st);
       rethrow;
@@ -104,63 +90,91 @@ class SupabaseTasksRepository implements BaseTasksRepository {
         throw Exception('User not authenticated');
       }
 
-      final taskData = task.toJson();
-      // Remove nested objects for initial task insert
-      final Map<String, dynamic> insertData = {
-        ...taskData,
-        'recurrence': null, // Handle separately if needed
-        'completions': null,
-        'reminders': null,
-        'assigned_to': null, // Handle task_members/task_entities separately
+      // Build task data manually since TaskModel doesn't have toJson()
+      final Map<String, dynamic> taskData = {
+        'id': task.id,
+        'title': task.title,
+        'type': task.type.name.toUpperCase(),
+        'notes': task.notes,
+        'location': task.location,
+        'contact_name': task.contactName,
+        'contact_email': task.contactEmail,
+        'contact_phone': task.contactPhone,
+        'hidden_tag': task.hiddenTag?.name.toUpperCase(),
+        'tags': task.tags,
+        'routine_id': task.routineId,
+        'created_at': task.createdAt.toIso8601String(),
+        'updated_at': task.updatedAt.toIso8601String(),
       };
 
-      final response = await _supabase.from('tasks').insert(insertData).select().single();
-      final newTask = TaskModel.fromJson(response);
-
-      // Add current user as a member by default
-      await _supabase.from('task_members').insert({
-        'task_id': newTask.id,
-        'member_id': _currentUserId,
-      });
-
-      // Handle recurrence if present
-      if (task.recurrence != null) {
-        await _supabase.from('recurrences').insert({
-          ...task.recurrence!.toJson(),
-          'task_id': newTask.id,
-        });
-      }
-
-      // Handle reminders if present
-      for (var reminder in task.reminders) {
-        await _supabase.from('task_reminders').insert({
-          ...reminder.toJson(),
-          'task_id': newTask.id,
-        });
-      }
-
-      // Handle assigned entities/users
-      for (var assignedId in task.assignedTo) {
-        // Determine if this is a user or entity ID and insert accordingly
-        final userExists = await _supabase.from('profiles').select('id').eq('id', assignedId).maybeSingle();
-        
-        if (userExists != null) {
-          // This is a user ID
-          await _supabase.from('task_members').insert({
-            'task_id': newTask.id,
-            'member_id': assignedId,
+      // Add specific fields based on task type
+      task.when(
+        (id, title, type, notes, location, contactName, contactEmail,
+            contactPhone, hiddenTag, tags, routineId, createdAt, updatedAt) {
+          // Base case - no additional fields needed
+        },
+        fixed: (id,
+            title,
+            type,
+            notes,
+            location,
+            contactName,
+            contactEmail,
+            contactPhone,
+            hiddenTag,
+            tags,
+            routineId,
+            createdAt,
+            updatedAt,
+            startDatetime,
+            endDatetime,
+            startTimezone,
+            endTimezone,
+            startDate,
+            endDate,
+            date,
+            duration) {
+          taskData.addAll({
+            'start_datetime': startDatetime?.toIso8601String(),
+            'end_datetime': endDatetime?.toIso8601String(),
+            'start_timezone': startTimezone,
+            'end_timezone': endTimezone,
+            'start_date': startDate?.toIso8601String(),
+            'end_date': endDate?.toIso8601String(),
+            'date': date?.toIso8601String(),
+            'duration': duration,
           });
-        } else {
-          // This is an entity ID
-          await _supabase.from('task_entities').insert({
-            'task_id': newTask.id,
-            'entity_id': assignedId,
+        },
+        flexible: (id,
+            title,
+            type,
+            notes,
+            location,
+            contactName,
+            contactEmail,
+            contactPhone,
+            hiddenTag,
+            tags,
+            routineId,
+            createdAt,
+            updatedAt,
+            earliestActionDate,
+            dueDate,
+            duration,
+            urgency) {
+          taskData.addAll({
+            'earliest_action_date': earliestActionDate?.toIso8601String(),
+            'due_date': dueDate?.toIso8601String(),
+            'duration': duration,
+            'urgency': urgency?.name.toUpperCase(),
           });
-        }
-      }
+        },
+      );
 
-      // Re-fetch the task with all its relations to return a complete model
-      return (await fetchTasks(searchQuery: newTask.id)).first;
+      final response =
+          await _supabase.from('tasks').insert(taskData).select().single();
+
+      return TaskModel.fromJson(response);
     } catch (e, st) {
       Logger.error('Failed to create task', e, st);
       rethrow;
@@ -176,56 +190,15 @@ class SupabaseTasksRepository implements BaseTasksRepository {
       }
 
       final taskData = task.toJson();
-      // Remove nested objects for update
-      final Map<String, dynamic> updateData = {
-        ...taskData,
-        'recurrence': null,
-        'completions': null,
-        'reminders': null,
-        'assigned_to': null,
-      };
 
-      final response = await _supabase.from('tasks').update(updateData).eq('id', task.id).select().single();
-      final updatedTask = TaskModel.fromJson(response);
+      final response = await _supabase
+          .from('tasks')
+          .update(taskData)
+          .eq('id', task.id)
+          .select()
+          .single();
 
-      // Update recurrence if present (upsert logic)
-      if (task.recurrence != null) {
-        await _supabase.from('recurrences').upsert({
-          ...task.recurrence!.toJson(),
-          'task_id': updatedTask.id,
-        });
-      } else {
-        // If recurrence is removed, delete it
-        await _supabase.from('recurrences').delete().eq('task_id', updatedTask.id);
-      }
-
-      // Update assigned entities/users
-      // First, clear existing assignments
-      await _supabase.from('task_members').delete().eq('task_id', task.id);
-      await _supabase.from('task_entities').delete().eq('task_id', task.id);
-      
-      // Then re-add current assignments
-      for (var assignedId in task.assignedTo) {
-        // Determine if this is a user or entity ID and insert accordingly
-        final userExists = await _supabase.from('profiles').select('id').eq('id', assignedId).maybeSingle();
-        
-        if (userExists != null) {
-          // This is a user ID
-          await _supabase.from('task_members').insert({
-            'task_id': task.id,
-            'member_id': assignedId,
-          });
-        } else {
-          // This is an entity ID
-          await _supabase.from('task_entities').insert({
-            'task_id': task.id,
-            'entity_id': assignedId,
-          });
-        }
-      }
-
-      // Re-fetch the task with all its relations to return a complete model
-      return (await fetchTasks(searchQuery: updatedTask.id)).first;
+      return TaskModel.fromJson(response);
     } catch (e, st) {
       Logger.error('Failed to update task', e, st);
       rethrow;
@@ -253,6 +226,7 @@ class SupabaseTasksRepository implements BaseTasksRepository {
       if (_currentUserId == null) {
         throw Exception('User not authenticated');
       }
+
       await _supabase.from('task_completion_forms').insert({
         'task_id': taskId,
         'completion_datetime': DateTime.now().toIso8601String(),
@@ -260,8 +234,6 @@ class SupabaseTasksRepository implements BaseTasksRepository {
         'complete': true,
         'partial': false,
       });
-      // Update the 'completed' status on the main task table
-      await _supabase.from('tasks').update({'completed': true}).eq('id', taskId);
     } catch (e, st) {
       Logger.error('Failed to complete task', e, st);
       rethrow;
@@ -270,11 +242,13 @@ class SupabaseTasksRepository implements BaseTasksRepository {
 
   /// Marks a task as partially complete
   @override
-  Future<void> markTaskPartiallyComplete(String taskId, {int? recurrenceIndex}) async {
+  Future<void> markTaskPartiallyComplete(String taskId,
+      {int? recurrenceIndex}) async {
     try {
       if (_currentUserId == null) {
         throw Exception('User not authenticated');
       }
+
       await _supabase.from('task_completion_forms').insert({
         'task_id': taskId,
         'completion_datetime': DateTime.now().toIso8601String(),
@@ -282,7 +256,6 @@ class SupabaseTasksRepository implements BaseTasksRepository {
         'complete': false,
         'partial': true,
       });
-      // Do not update the 'completed' status on the main task table since it's only partial
     } catch (e, st) {
       Logger.error('Failed to mark task as partially complete', e, st);
       rethrow;
@@ -328,16 +301,15 @@ class SupabaseTasksRepository implements BaseTasksRepository {
         throw Exception('User not authenticated');
       }
 
-      final response = await _supabase.from('tasks').select('''
-        *,
-        recurrences!left(*),
-        completions:task_completion_forms!left(*),
-        reminders:task_reminders!left(*),
-        task_members!left(member_id),
-        task_entities!left(entity_id)
-      ''').or('title.ilike.%$query%,notes.ilike.%$query%').order('created_at', ascending: false);
+      final response = await _supabase
+          .from('tasks')
+          .select('*')
+          .or('title.ilike.%$query%,notes.ilike.%$query%')
+          .order('created_at', ascending: false);
 
-      return (response as List).map((json) => TaskModel.fromJson(json)).toList();
+      return (response as List)
+          .map((json) => TaskModel.fromJson(json))
+          .toList();
     } catch (e, st) {
       Logger.error('Failed to search tasks', e, st);
       rethrow;
@@ -352,16 +324,15 @@ class SupabaseTasksRepository implements BaseTasksRepository {
         throw Exception('User not authenticated');
       }
 
-      final response = await _supabase.from('tasks').select('''
-        *,
-        recurrences!left(*),
-        completions:task_completion_forms!left(*),
-        reminders:task_reminders!left(*),
-        task_members!left(member_id),
-        task_entities!left(entity_id)
-      ''').eq('task_entities.entity_id', entityId).order('due_date', ascending: true);
+      final response = await _supabase
+          .from('tasks')
+          .select('*')
+          .eq('entity_id', entityId)
+          .order('due_date', ascending: true);
 
-      return (response as List).map((json) => TaskModel.fromJson(json)).toList();
+      return (response as List)
+          .map((json) => TaskModel.fromJson(json))
+          .toList();
     } catch (e, st) {
       Logger.error('Failed to fetch tasks for entity', e, st);
       rethrow;
@@ -377,21 +348,16 @@ class SupabaseTasksRepository implements BaseTasksRepository {
       }
 
       final today = DateTime.now().toIso8601String().split('T').first;
-      
-      final response = await _supabase.from('tasks').select('''
-        *,
-        recurrences!left(*),
-        completions:task_completion_forms!left(*),
-        reminders:task_reminders!left(*),
-        task_members!left(member_id),
-        task_entities!left(entity_id)
-      ''')
-      .lt('due_date', today)
-      .eq('completed', false)
-      .or('task_members.member_id.eq.$_currentUserId,task_entities.entity_id.in.(select id from entities where owner_id.eq.$_currentUserId)')
-      .order('due_date', ascending: true);
 
-      return (response as List).map((json) => TaskModel.fromJson(json)).toList();
+      final response = await _supabase
+          .from('tasks')
+          .select('*')
+          .lt('due_date', today)
+          .order('due_date', ascending: true);
+
+      return (response as List)
+          .map((json) => TaskModel.fromJson(json))
+          .toList();
     } catch (e, st) {
       Logger.error('Failed to fetch overdue tasks', e, st);
       rethrow;
@@ -407,23 +373,22 @@ class SupabaseTasksRepository implements BaseTasksRepository {
       }
 
       final today = DateTime.now().toIso8601String().split('T').first;
-      final futureDate = DateTime.now().add(Duration(days: days)).toIso8601String().split('T').first;
-      
-      final response = await _supabase.from('tasks').select('''
-        *,
-        recurrences!left(*),
-        completions:task_completion_forms!left(*),
-        reminders:task_reminders!left(*),
-        task_members!left(member_id),
-        task_entities!left(entity_id)
-      ''')
-      .gte('due_date', today)
-      .lte('due_date', futureDate)
-      .eq('completed', false)
-      .or('task_members.member_id.eq.$_currentUserId,task_entities.entity_id.in.(select id from entities where owner_id.eq.$_currentUserId)')
-      .order('due_date', ascending: true);
+      final futureDate = DateTime.now()
+          .add(Duration(days: days))
+          .toIso8601String()
+          .split('T')
+          .first;
 
-      return (response as List).map((json) => TaskModel.fromJson(json)).toList();
+      final response = await _supabase
+          .from('tasks')
+          .select('*')
+          .gte('due_date', today)
+          .lte('due_date', futureDate)
+          .order('due_date', ascending: true);
+
+      return (response as List)
+          .map((json) => TaskModel.fromJson(json))
+          .toList();
     } catch (e, st) {
       Logger.error('Failed to fetch upcoming tasks', e, st);
       rethrow;

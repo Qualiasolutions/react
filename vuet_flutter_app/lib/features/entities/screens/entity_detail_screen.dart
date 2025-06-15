@@ -22,9 +22,9 @@ class EntityDetailScreen extends ConsumerStatefulWidget {
   final String entityId;
 
   const EntityDetailScreen({
-    Key? key,
+    super.key,
     required this.entityId,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<EntityDetailScreen> createState() => _EntityDetailScreenState();
@@ -250,7 +250,7 @@ class _EntityDetailScreenState extends ConsumerState<EntityDetailScreen> {
                         child: CachedNetworkImage(
                           imageUrl: entity.imagePath!,
                           fit: BoxFit.cover,
-                          placeholder: (context, url) => Center(
+                          placeholder: (context, url) => const Center(
                             child: CircularProgressIndicator(
                               valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
                             ),
@@ -439,11 +439,11 @@ class _EntityDetailScreenState extends ConsumerState<EntityDetailScreen> {
                       label: item.key.replaceAll('_', ' ').capitalize(),
                       value: item.value.toString(),
                     );
-                  }).toList(),
+                  }),
                   SizedBox(height: UIConstants.paddingS.h),
                 ],
               );
-            }).toList(),
+            }),
             // Placeholder for dynamic form editing
             Align(
               alignment: Alignment.centerRight,
@@ -499,9 +499,9 @@ class _EntityDetailScreenState extends ConsumerState<EntityDetailScreen> {
             SizedBox(height: UIConstants.paddingS.h),
             // Owner row
             ListTile(
-              leading: CircleAvatar(
+              leading: const CircleAvatar(
                 backgroundColor: Colors.blue,
-                child: const Icon(Icons.person, color: Colors.white),
+                child: Icon(Icons.person, color: Colors.white),
               ),
               title: Text(
                 'Owner', // In a real app, fetch the owner's name
@@ -523,9 +523,9 @@ class _EntityDetailScreenState extends ConsumerState<EntityDetailScreen> {
             ...entity.members.map((member) {
               final isCurrentUser = member.userId == currentUserId;
               return ListTile(
-                leading: CircleAvatar(
+                leading: const CircleAvatar(
                   backgroundColor: Colors.green,
-                  child: const Icon(Icons.person, color: Colors.white),
+                  child: Icon(Icons.person, color: Colors.white),
                 ),
                 title: Text(
                   'Member', // In a real app, fetch the member's name
@@ -544,7 +544,7 @@ class _EntityDetailScreenState extends ConsumerState<EntityDetailScreen> {
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(member.role, style: TextStyle(color: Colors.grey)),
+                    Text(member.role, style: const TextStyle(color: Colors.grey)),
                     if (isOwner && !isCurrentUser)
                       IconButton(
                         icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
@@ -553,7 +553,7 @@ class _EntityDetailScreenState extends ConsumerState<EntityDetailScreen> {
                   ],
                 ),
               );
-            }).toList(),
+            }),
             if (entity.members.isEmpty)
               Padding(
                 padding: EdgeInsets.all(UIConstants.paddingM.w),

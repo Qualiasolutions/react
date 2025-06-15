@@ -10,10 +10,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:vuet_flutter/core/utils/logger.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:vuet_flutter/features/auth/providers/auth_provider.dart';
-import 'package:vuet_flutter/features/user/providers/user_provider.dart';
 
 class SetupNavigator extends ConsumerStatefulWidget {
-  const SetupNavigator({Key? key}) : super(key: key);
+  const SetupNavigator({super.key});
 
   @override
   ConsumerState<SetupNavigator> createState() => _SetupNavigatorState();

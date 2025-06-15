@@ -23,10 +23,10 @@ class EntityEditScreen extends ConsumerStatefulWidget {
   final int? categoryId; // Required for new entities, pre-filled for existing
 
   const EntityEditScreen({
-    Key? key,
+    super.key,
     this.entityId,
     this.categoryId,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<EntityEditScreen> createState() => _EntityEditScreenState();
@@ -246,7 +246,7 @@ class _EntityEditScreenState extends ConsumerState<EntityEditScreen> {
                                   fit: BoxFit.cover,
                                   width: double.infinity,
                                   height: double.infinity,
-                                  placeholder: (context, url) => Center(
+                                  placeholder: (context, url) => const Center(
                                     child: CircularProgressIndicator(
                                       valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
                                     ),

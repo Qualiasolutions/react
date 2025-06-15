@@ -7,8 +7,6 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vuet_flutter/core/constants/app_constants.dart';
 import 'package:vuet_flutter/core/theme/app_theme.dart';
-import 'package:vuet_flutter/core/utils/logger.dart';
-import 'package:vuet_flutter/data/models/simple_entity_model.dart';
 import 'package:vuet_flutter/features/entities/providers/entities_provider.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 
@@ -17,10 +15,10 @@ class EntityListScreen extends ConsumerStatefulWidget {
   final String categoryName;
 
   const EntityListScreen({
-    Key? key,
+    super.key,
     required this.categoryId,
     required this.categoryName,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<EntityListScreen> createState() => _EntityListScreenState();

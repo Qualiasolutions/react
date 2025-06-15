@@ -8,11 +8,10 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:vuet_flutter/core/utils/logger.dart';
-import 'package:vuet_flutter/features/auth/providers/auth_provider.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
-  const RegisterScreen({Key? key}) : super(key: key);
+  const RegisterScreen({super.key});
 
   @override
   ConsumerState<RegisterScreen> createState() => _RegisterScreenState();

@@ -6,7 +6,7 @@ import 'package:vuet_flutter/core/theme/app_theme.dart';
 import 'package:vuet_flutter/features/auth/domain/providers/auth_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
 
   @override
   ConsumerState<SplashScreen> createState() => _SplashScreenState();

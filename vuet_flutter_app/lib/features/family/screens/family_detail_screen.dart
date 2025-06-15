@@ -17,9 +17,9 @@ class FamilyDetailScreen extends ConsumerStatefulWidget {
   final String familyId;
 
   const FamilyDetailScreen({
-    Key? key,
+    super.key,
     required this.familyId,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<FamilyDetailScreen> createState() => _FamilyDetailScreenState();

@@ -12,18 +12,19 @@ import 'package:uuid/uuid.dart';
 import 'package:vuet_flutter/core/constants/app_constants.dart';
 import 'package:vuet_flutter/core/theme/app_theme.dart';
 import 'package:vuet_flutter/core/utils/logger.dart';
-import 'package:vuet_flutter/data/models/task_model.dart';
+import 'package:vuet_flutter/features/tasks/data/models/task_model.dart';
 import 'package:vuet_flutter/features/tasks/providers/tasks_provider.dart';
 
 class TaskEditScreen extends ConsumerStatefulWidget {
   final String? taskId; // Null if creating new task
-  final String? entityId; // Optional: pre-fill if task is associated with an entity
+  final String?
+      entityId; // Optional: pre-fill if task is associated with an entity
 
   const TaskEditScreen({
-    Key? key,
+    super.key,
     this.taskId,
     this.entityId,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<TaskEditScreen> createState() => _TaskEditScreenState();
@@ -36,7 +37,7 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
   DateTime? _selectedDueDate;
   TaskType _selectedTaskType = TaskType.task;
   UrgencyType _selectedUrgency = UrgencyType.medium;
-  
+
   // Recurrence fields
   RecurrenceType? _selectedRecurrenceType;
   final _recurrenceIntervalController = TextEditingController(text: '1');
@@ -64,9 +65,12 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
 
         if (_initialTask!.recurrence != null) {
           _selectedRecurrenceType = _initialTask!.recurrence!.recurrence;
-          _recurrenceIntervalController.text = _initialTask!.recurrence!.intervalLength.toString();
-          _recurrenceEarliestOccurrence = _initialTask!.recurrence!.earliestOccurrence;
-          _recurrenceLatestOccurrence = _initialTask!.recurrence!.latestOccurrence;
+          _recurrenceIntervalController.text =
+              _initialTask!.recurrence!.intervalLength.toString();
+          _recurrenceEarliestOccurrence =
+              _initialTask!.recurrence!.earliestOccurrence;
+          _recurrenceLatestOccurrence =
+              _initialTask!.recurrence!.latestOccurrence;
         }
         _reminders.addAll(_initialTask!.reminders);
       }
@@ -91,7 +95,7 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
+            colorScheme: const ColorScheme.light(
               primary: AppTheme.primaryColor, // header background color
               onPrimary: Colors.white, // header text color
               onSurface: AppTheme.darkTextColor, // body text color
@@ -149,7 +153,8 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
           ? TaskRecurrence(
               id: _initialTask?.recurrence?.id ?? const Uuid().v4(),
               recurrence: _selectedRecurrenceType!,
-              intervalLength: int.tryParse(_recurrenceIntervalController.text) ?? 1,
+              intervalLength:
+                  int.tryParse(_recurrenceIntervalController.text) ?? 1,
               earliestOccurrence: _recurrenceEarliestOccurrence,
               latestOccurrence: _recurrenceLatestOccurrence,
             )
@@ -169,7 +174,9 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
         final newTask = TaskModel(
           id: const Uuid().v4(), // Generate a client-side ID for now
           title: _titleController.text.trim(),
-          description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+          description: _descriptionController.text.trim().isEmpty
+              ? null
+              : _descriptionController.text.trim(),
           type: _selectedTaskType,
           urgency: _selectedUrgency,
           dueDate: _selectedDueDate,
@@ -185,7 +192,9 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
         // Update existing task
         final updatedTask = _initialTask!.copyWith(
           title: _titleController.text.trim(),
-          description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+          description: _descriptionController.text.trim().isEmpty
+              ? null
+              : _descriptionController.text.trim(),
           type: _selectedTaskType,
           urgency: _selectedUrgency,
           dueDate: _selectedDueDate,
@@ -261,12 +270,14 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
                       controller: TextEditingController(
                         text: _selectedDueDate == null
                             ? ''
-                            : DateFormat('MMM d, yyyy').format(_selectedDueDate!),
+                            : DateFormat('MMM d, yyyy')
+                                .format(_selectedDueDate!),
                       ),
                       decoration: InputDecoration(
                         labelText: 'Due Date (Optional)',
                         hintText: 'Select a date',
-                        suffixIcon: Icon(Icons.calendar_today, color: Colors.grey[600]),
+                        suffixIcon:
+                            Icon(Icons.calendar_today, color: Colors.grey[600]),
                       ),
                     ),
                   ),
@@ -335,7 +346,7 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
                         value: type,
                         child: Text(type.toDbString().replaceAll('_', ' ')),
                       );
-                    }).toList(),
+                    }),
                   ],
                   onChanged: (value) {
                     setState(() {
@@ -348,12 +359,14 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
                   TextFormField(
                     controller: _recurrenceIntervalController,
                     keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: 'Interval Length',
                       hintText: 'e.g., 1 for every day/week/month',
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty || int.tryParse(value) == null) {
+                      if (value == null ||
+                          value.isEmpty ||
+                          int.tryParse(value) == null) {
                         return 'Please enter a valid number';
                       }
                       return null;
@@ -365,11 +378,15 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
                     onTap: () async {
                       final DateTime? picked = await showDatePicker(
                         context: context,
-                        initialDate: _recurrenceEarliestOccurrence ?? DateTime.now(),
-                        firstDate: DateTime.now().subtract(const Duration(days: 365 * 5)),
-                        lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+                        initialDate:
+                            _recurrenceEarliestOccurrence ?? DateTime.now(),
+                        firstDate: DateTime.now()
+                            .subtract(const Duration(days: 365 * 5)),
+                        lastDate:
+                            DateTime.now().add(const Duration(days: 365 * 10)),
                       );
-                      if (picked != null && picked != _recurrenceEarliestOccurrence) {
+                      if (picked != null &&
+                          picked != _recurrenceEarliestOccurrence) {
                         setState(() {
                           _recurrenceEarliestOccurrence = picked;
                         });
@@ -380,11 +397,13 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
                         controller: TextEditingController(
                           text: _recurrenceEarliestOccurrence == null
                               ? ''
-                              : DateFormat('MMM d, yyyy').format(_recurrenceEarliestOccurrence!),
+                              : DateFormat('MMM d, yyyy')
+                                  .format(_recurrenceEarliestOccurrence!),
                         ),
                         decoration: InputDecoration(
                           labelText: 'Earliest Occurrence (Optional)',
-                          suffixIcon: Icon(Icons.calendar_today, color: Colors.grey[600]),
+                          suffixIcon: Icon(Icons.calendar_today,
+                              color: Colors.grey[600]),
                         ),
                       ),
                     ),
@@ -395,11 +414,15 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
                     onTap: () async {
                       final DateTime? picked = await showDatePicker(
                         context: context,
-                        initialDate: _recurrenceLatestOccurrence ?? DateTime.now().add(const Duration(days: 365)),
-                        firstDate: DateTime.now().subtract(const Duration(days: 365 * 5)),
-                        lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+                        initialDate: _recurrenceLatestOccurrence ??
+                            DateTime.now().add(const Duration(days: 365)),
+                        firstDate: DateTime.now()
+                            .subtract(const Duration(days: 365 * 5)),
+                        lastDate:
+                            DateTime.now().add(const Duration(days: 365 * 10)),
                       );
-                      if (picked != null && picked != _recurrenceLatestOccurrence) {
+                      if (picked != null &&
+                          picked != _recurrenceLatestOccurrence) {
                         setState(() {
                           _recurrenceLatestOccurrence = picked;
                         });
@@ -410,11 +433,13 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
                         controller: TextEditingController(
                           text: _recurrenceLatestOccurrence == null
                               ? ''
-                              : DateFormat('MMM d, yyyy').format(_recurrenceLatestOccurrence!),
+                              : DateFormat('MMM d, yyyy')
+                                  .format(_recurrenceLatestOccurrence!),
                         ),
                         decoration: InputDecoration(
                           labelText: 'Latest Occurrence (Optional)',
-                          suffixIcon: Icon(Icons.calendar_today, color: Colors.grey[600]),
+                          suffixIcon: Icon(Icons.calendar_today,
+                              color: Colors.grey[600]),
                         ),
                       ),
                     ),
@@ -477,7 +502,8 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
                     foregroundColor: Colors.white,
                     padding: EdgeInsets.symmetric(vertical: 16.h),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(UIConstants.radiusM.r),
+                      borderRadius:
+                          BorderRadius.circular(UIConstants.radiusM.r),
                     ),
                   ),
                   child: Text(
@@ -498,7 +524,8 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
                     side: BorderSide(color: Colors.grey[400]!),
                     padding: EdgeInsets.symmetric(vertical: 16.h),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(UIConstants.radiusM.r),
+                      borderRadius:
+                          BorderRadius.circular(UIConstants.radiusM.r),
                     ),
                   ),
                   child: Text(

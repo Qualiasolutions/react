@@ -5,13 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
-import 'package:vuet_flutter/core/constants/app_constants.dart';
 import 'package:vuet_flutter/core/utils/logger.dart';
 import 'package:vuet_flutter/features/auth/providers/auth_provider.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();

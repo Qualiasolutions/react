@@ -3,7 +3,7 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vuet_flutter/core/utils/logger.dart';
-import 'package:vuet_flutter/data/models/task_model.dart';
+import 'package:vuet_flutter/features/tasks/data/models/task_model.dart';
 import 'package:vuet_flutter/features/auth/providers/auth_provider.dart';
 import 'package:vuet_flutter/features/tasks/data/repositories/tasks_repository.dart';
 
@@ -57,7 +57,8 @@ class TasksNotifier extends StateNotifier<TasksState> {
   final BaseTasksRepository _repository;
   final String? _currentUserId;
 
-  TasksNotifier(this._repository, this._currentUserId) : super(const TasksState());
+  TasksNotifier(this._repository, this._currentUserId)
+      : super(const TasksState());
 
   /// Fetches tasks based on optional filters.
   Future<void> fetchTasks({
@@ -105,7 +106,8 @@ class TasksNotifier extends StateNotifier<TasksState> {
       );
     } catch (e, st) {
       Logger.error('Failed to fetch tasks', e, st);
-      state = state.copyWith(isLoading: false, error: e.toString(), isCached: false);
+      state = state.copyWith(
+          isLoading: false, error: e.toString(), isCached: false);
     }
   }
 
@@ -140,7 +142,9 @@ class TasksNotifier extends StateNotifier<TasksState> {
     try {
       final updatedTask = await _repository.updateTask(task);
       state = state.copyWith(
-        tasks: state.tasks.map((t) => t.id == updatedTask.id ? updatedTask : t).toList(),
+        tasks: state.tasks
+            .map((t) => t.id == updatedTask.id ? updatedTask : t)
+            .toList(),
         isLoading: false,
       );
       return updatedTask;
@@ -181,7 +185,7 @@ class TasksNotifier extends StateNotifier<TasksState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       await _repository.completeTask(taskId, recurrenceIndex: recurrenceIndex);
-      
+
       // Update the task in state
       state = state.copyWith(
         tasks: state.tasks.map((task) {
@@ -194,10 +198,10 @@ class TasksNotifier extends StateNotifier<TasksState> {
               complete: true,
               partial: false,
             );
-            
+
             // Add to existing completions
             final updatedCompletions = [...task.completions, newCompletion];
-            
+
             // Return updated task
             return task.copyWith(
               completed: true,
@@ -217,15 +221,17 @@ class TasksNotifier extends StateNotifier<TasksState> {
   }
 
   /// Marks a task as partially complete.
-  Future<bool> markTaskPartiallyComplete(String taskId, {int? recurrenceIndex}) async {
+  Future<bool> markTaskPartiallyComplete(String taskId,
+      {int? recurrenceIndex}) async {
     if (_currentUserId == null) {
       state = state.copyWith(error: 'User not authenticated');
       return false;
     }
     state = state.copyWith(isLoading: true, error: null);
     try {
-      await _repository.markTaskPartiallyComplete(taskId, recurrenceIndex: recurrenceIndex);
-      
+      await _repository.markTaskPartiallyComplete(taskId,
+          recurrenceIndex: recurrenceIndex);
+
       // Update the task in state
       state = state.copyWith(
         tasks: state.tasks.map((task) {
@@ -238,10 +244,10 @@ class TasksNotifier extends StateNotifier<TasksState> {
               complete: false,
               partial: true,
             );
-            
+
             // Add to existing completions
             final updatedCompletions = [...task.completions, newCompletion];
-            
+
             // Return updated task (note: completed status remains false)
             return task.copyWith(
               completions: updatedCompletions,
@@ -268,7 +274,7 @@ class TasksNotifier extends StateNotifier<TasksState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       await _repository.addReminder(taskId, reminder);
-      
+
       // Update the task in state
       state = state.copyWith(
         tasks: state.tasks.map((task) {
@@ -298,7 +304,7 @@ class TasksNotifier extends StateNotifier<TasksState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       await _repository.removeReminder(reminderId);
-      
+
       // Update all tasks in state to remove this reminder
       state = state.copyWith(
         tasks: state.tasks.map((task) {
@@ -338,7 +344,8 @@ class TasksNotifier extends StateNotifier<TasksState> {
       );
     } catch (e, st) {
       Logger.error('Failed to fetch tasks for entity', e, st);
-      state = state.copyWith(isLoading: false, error: e.toString(), isCached: false);
+      state = state.copyWith(
+          isLoading: false, error: e.toString(), isCached: false);
     }
   }
 
@@ -358,7 +365,8 @@ class TasksNotifier extends StateNotifier<TasksState> {
       );
     } catch (e, st) {
       Logger.error('Failed to fetch overdue tasks', e, st);
-      state = state.copyWith(isLoading: false, error: e.toString(), isCached: false);
+      state = state.copyWith(
+          isLoading: false, error: e.toString(), isCached: false);
     }
   }
 
@@ -378,7 +386,8 @@ class TasksNotifier extends StateNotifier<TasksState> {
       );
     } catch (e, st) {
       Logger.error('Failed to fetch upcoming tasks', e, st);
-      state = state.copyWith(isLoading: false, error: e.toString(), isCached: false);
+      state = state.copyWith(
+          isLoading: false, error: e.toString(), isCached: false);
     }
   }
 
@@ -457,7 +466,8 @@ final todayTasksProvider = Provider<List<TaskModel>>((ref) {
 });
 
 /// Provider for tasks by entity.
-final tasksByEntityProvider = FutureProvider.family<List<TaskModel>, String>((ref, entityId) async {
+final tasksByEntityProvider =
+    FutureProvider.family<List<TaskModel>, String>((ref, entityId) async {
   final tasksNotifier = ref.watch(tasksProvider.notifier);
   await tasksNotifier.fetchTasksForEntity(entityId);
   return ref.watch(tasksProvider).tasks;
@@ -474,21 +484,26 @@ final taskByIdProvider = Provider.family<TaskModel?, String>((ref, taskId) {
 });
 
 /// Provider for tasks by type.
-final tasksByTypeProvider = Provider.family<List<TaskModel>, TaskType>((ref, type) {
+final tasksByTypeProvider =
+    Provider.family<List<TaskModel>, TaskType>((ref, type) {
   final tasksState = ref.watch(tasksProvider);
   return tasksState.tasks.where((task) => task.type == type).toList();
 });
 
 /// Provider for tasks by urgency.
-final tasksByUrgencyProvider = Provider.family<List<TaskModel>, UrgencyType>((ref, urgency) {
+final tasksByUrgencyProvider =
+    Provider.family<List<TaskModel>, UrgencyType>((ref, urgency) {
   final tasksState = ref.watch(tasksProvider);
   return tasksState.tasks.where((task) => task.urgency == urgency).toList();
 });
 
 /// Provider for tasks by completion status.
-final tasksByCompletionProvider = Provider.family<List<TaskModel>, bool>((ref, isCompleted) {
+final tasksByCompletionProvider =
+    Provider.family<List<TaskModel>, bool>((ref, isCompleted) {
   final tasksState = ref.watch(tasksProvider);
-  return tasksState.tasks.where((task) => task.completed == isCompleted).toList();
+  return tasksState.tasks
+      .where((task) => task.completed == isCompleted)
+      .toList();
 });
 
 /// Provider for tasks loading state.

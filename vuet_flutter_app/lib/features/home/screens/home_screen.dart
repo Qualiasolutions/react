@@ -7,11 +7,12 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import 'package:vuet_flutter/core/utils/logger.dart';
-import 'package:vuet_flutter/data/models/task_model.dart';
+import 'package:vuet_flutter/features/tasks/data/models/task_model.dart';
 import 'package:vuet_flutter/features/tasks/providers/tasks_provider.dart';
 
 // Sample task data provider (would be replaced with real data from Supabase)
 final selectedDateProvider = StateProvider<DateTime>((ref) => DateTime.now());
+
 // helper extension to compare only y/m/d
 extension _SameDay on DateTime {
   bool isSameDay(DateTime other) =>
@@ -19,7 +20,7 @@ extension _SameDay on DateTime {
 }
 
 class HomeScreen extends ConsumerStatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
@@ -54,8 +55,55 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // Build a map of events for TableCalendar
     final Map<DateTime, List<TaskModel>> events = {};
     for (final t in tasks) {
-      if (t.dueDate != null) {
-        final key = DateTime.utc(t.dueDate!.year, t.dueDate!.month, t.dueDate!.day);
+      DateTime? taskDate;
+      t.when(
+        fixed: (id,
+            title,
+            type,
+            notes,
+            location,
+            contactName,
+            contactEmail,
+            contactPhone,
+            hiddenTag,
+            tags,
+            routineId,
+            createdAt,
+            updatedAt,
+            startDatetime,
+            endDatetime,
+            startTimezone,
+            endTimezone,
+            startDate,
+            endDate,
+            date,
+            duration) {
+          taskDate = startDate ?? date ?? startDatetime;
+        },
+        flexible: (id,
+            title,
+            type,
+            notes,
+            location,
+            contactName,
+            contactEmail,
+            contactPhone,
+            hiddenTag,
+            tags,
+            routineId,
+            createdAt,
+            updatedAt,
+            earliestActionDate,
+            dueDate,
+            duration,
+            urgency) {
+          taskDate = dueDate ?? earliestActionDate;
+        },
+      );
+
+      if (taskDate != null) {
+        final key =
+            DateTime.utc(taskDate!.year, taskDate!.month, taskDate!.day);
         events.putIfAbsent(key, () => []).add(t);
       }
     }
@@ -89,7 +137,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         color: Colors.black87,
                       ),
                     ),
-                    
+
                     // Row with settings and expand buttons
                     Row(
                       children: [
@@ -100,14 +148,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             Logger.debug('Calendar settings pressed');
                           },
                         ),
-                        
+
                         // Expand/collapse button
                         TextButton.icon(
                           onPressed: () {
                             setState(() {
                               _isExpanded = !_isExpanded;
-                              _calendarFormat = _isExpanded 
-                                  ? CalendarFormat.month 
+                              _calendarFormat = _isExpanded
+                                  ? CalendarFormat.month
                                   : CalendarFormat.week;
                             });
                           },
@@ -133,7 +181,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   ],
                 ),
-                
+
                 // Date subtitle
                 Text(
                   DateFormat('MMMM d, yyyy').format(selectedDate),
@@ -145,7 +193,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ],
             ),
           ),
-          
+
           // Calendar widget
           TableCalendar(
             firstDay: DateTime.utc(2020, 1, 1),
@@ -172,33 +220,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             headerStyle: HeaderStyle(
               titleCentered: true,
               formatButtonVisible: false,
-              leftChevronIcon: const Icon(Icons.chevron_left, color: Colors.black54),
-              rightChevronIcon: const Icon(Icons.chevron_right, color: Colors.black54),
+              leftChevronIcon:
+                  const Icon(Icons.chevron_left, color: Colors.black54),
+              rightChevronIcon:
+                  const Icon(Icons.chevron_right, color: Colors.black54),
               titleTextStyle: TextStyle(
                 fontSize: 18.sp,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            calendarStyle: CalendarStyle(
+            calendarStyle: const CalendarStyle(
               todayDecoration: BoxDecoration(
                 color: Colors.black,
                 shape: BoxShape.circle,
               ),
-              selectedDecoration: const BoxDecoration(
+              selectedDecoration: BoxDecoration(
                 color: Color(0xFF2196F3),
                 shape: BoxShape.circle,
               ),
-              todayTextStyle: const TextStyle(
+              todayTextStyle: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
               ),
-              selectedTextStyle: const TextStyle(
+              selectedTextStyle: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
               ),
               markersMaxCount: 3,
               markersAnchor: 1.7,
-              markerDecoration: const BoxDecoration(
+              markerDecoration: BoxDecoration(
                 color: Color(0xFF2196F3),
                 shape: BoxShape.circle,
               ),
@@ -238,7 +288,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
           ),
-          
+
           // Search bar
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
@@ -264,7 +314,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               },
             ),
           ),
-          
+
           // Today section
           Expanded(
             child: SingleChildScrollView(
@@ -299,7 +349,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               ),
                             ),
                             Text(
-                              DateFormat('EEEE, MMMM d, yyyy').format(DateTime.now()),
+                              DateFormat('EEEE, MMMM d, yyyy')
+                                  .format(DateTime.now()),
                               style: TextStyle(
                                 fontSize: 14.sp,
                                 color: Colors.black54,
@@ -310,7 +361,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ],
                     ),
                   ),
-                  
+
                   // Task list
                   ListView.builder(
                     shrinkWrap: true,
@@ -321,9 +372,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             t.dueDate!.isSameDay(selectedDate))
                         .length,
                     itemBuilder: (context, index) {
-                      final todays = tasks.where((t) =>
-                          t.dueDate != null &&
-                          t.dueDate!.isSameDay(selectedDate)).toList();
+                      final todays = tasks
+                          .where((t) =>
+                              t.dueDate != null &&
+                              t.dueDate!.isSameDay(selectedDate))
+                          .toList();
                       final task = todays[index];
                       return TaskListItem(task: task);
                     },
@@ -341,11 +394,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 // Task list item widget
 class TaskListItem extends StatelessWidget {
   final TaskModel task;
-  
+
   const TaskListItem({
-    Key? key,
+    super.key,
     required this.task,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -441,6 +494,7 @@ extension StringExtension on String {
   String capitalize() {
     return "${this[0].toUpperCase()}${substring(1).toLowerCase()}";
   }
+}
 
 Color _typeColor(TaskType type) {
   switch (type) {

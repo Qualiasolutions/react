@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -16,23 +17,31 @@ import 'package:vuet_flutter/features/auth/data/repositories/auth_repository.dar
 void main() async {
   // Ensure Flutter is initialized
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize error handling
   ErrorHandler.initialize();
-  
+
   // Initialize Supabase
   try {
     await Supabase.initialize(
       url: 'https://vhiwshayajhjmrouddqi.supabase.co',
-      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoaXdzaGF5YWpoam1yb3VkZHFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk5MzExMTMsImV4cCI6MjA2NTUwNzExM30.ixFBNk5LcqrkhslzYsqQV3aiOcig0VQQoyKlzSikxNo',
+      anonKey:
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoaXdzaGF5YWpoam1yb3VkZHFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk5MzExMTMsImV4cCI6MjA2NTUwNzExM30.ixFBNk5LcqrkhslzYsqQV3aiOcig0VQQoyKlzSikxNo',
       authFlowType: AuthFlowType.pkce,
     );
     debugPrint('Supabase initialized successfully');
   } catch (e, stackTrace) {
     debugPrint('Failed to initialize Supabase: $e');
-    ErrorHandler.reportError('Supabase initialization failed', e, stackTrace: stackTrace);
+    ErrorHandler.reportError('Supabase initialization failed', e,
+        stackTrace: stackTrace);
   }
-  
+
+  // Set preferred orientations
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
   // Run the app with ProviderScope for Riverpod
   runApp(
     const ProviderScope(
@@ -42,37 +51,40 @@ void main() async {
 }
 
 // App state notifier to handle global app state
-final appStateProvider = StateNotifierProvider<AppStateNotifier, AppState>((ref) {
+final appStateProvider =
+    StateNotifierProvider<AppStateNotifier, AppState>((ref) {
   return AppStateNotifier(ref);
 });
 
 class AppStateNotifier extends StateNotifier<AppState> {
   final Ref _ref;
-  
+
   AppStateNotifier(this._ref) : super(AppState.initializing) {
     _initialize();
   }
-  
+
   Future<void> _initialize() async {
     try {
       // Check if user is already authenticated
-      final session = await _ref.read(authRepositoryProvider).getCurrentSession();
-      
+      final session =
+          await _ref.read(authRepositoryProvider).getCurrentSession();
+
       if (session != null) {
         state = AppState.authenticated;
       } else {
         state = AppState.unauthenticated;
       }
     } catch (e, stackTrace) {
-      ErrorHandler.reportError('Error initializing app state', e, stackTrace: stackTrace);
+      ErrorHandler.reportError('Error initializing app state', e,
+          stackTrace: stackTrace);
       state = AppState.unauthenticated;
     }
   }
-  
+
   void setAuthenticated() {
     state = AppState.authenticated;
   }
-  
+
   void setUnauthenticated() {
     state = AppState.unauthenticated;
   }
@@ -91,7 +103,7 @@ class VuetApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final appState = ref.watch(appStateProvider);
     final authState = ref.watch(authStateProvider);
-    
+
     // Configure the router based on authentication state
     final router = GoRouter(
       initialLocation: '/',
@@ -102,27 +114,30 @@ class VuetApp extends ConsumerWidget {
         final isLoginRoute = state.matchedLocation == '/login';
         final isSignupRoute = state.matchedLocation == '/signup';
         final isVerifyRoute = state.matchedLocation.startsWith('/verify');
-        
+
         // Show splash screen while initializing
         if (isInitializing) {
           return '/';
         }
-        
+
         // If not authenticated and not on auth routes, redirect to login
-        if (!isAuthenticated && 
-            !isLoginRoute && 
-            !isSignupRoute && 
+        if (!isAuthenticated &&
+            !isLoginRoute &&
+            !isSignupRoute &&
             !isVerifyRoute &&
             state.matchedLocation != '/') {
           return '/login';
         }
-        
+
         // If authenticated and on auth routes, redirect to home
-        if (isAuthenticated && 
-            (isLoginRoute || isSignupRoute || isVerifyRoute || state.matchedLocation == '/')) {
+        if (isAuthenticated &&
+            (isLoginRoute ||
+                isSignupRoute ||
+                isVerifyRoute ||
+                state.matchedLocation == '/')) {
           return '/home';
         }
-        
+
         // No redirect needed
         return null;
       },
@@ -132,7 +147,7 @@ class VuetApp extends ConsumerWidget {
           path: '/',
           builder: (context, state) => const SplashScreen(),
         ),
-        
+
         // Authentication routes
         GoRoute(
           path: '/login',
@@ -150,7 +165,7 @@ class VuetApp extends ConsumerWidget {
             return VerifyPhoneScreen(method: method, extraData: extraData);
           },
         ),
-        
+
         // Main app routes
         GoRoute(
           path: '/home',
@@ -183,7 +198,8 @@ class VuetApp extends ConsumerWidget {
     );
 
     return ScreenUtilInit(
-      designSize: const Size(375, 812), // Base design size from Figma or design specs
+      designSize:
+          const Size(375, 812), // Base design size from Figma or design specs
       minTextAdapt: true,
       splitScreenMode: true,
       builder: (context, child) {
@@ -219,7 +235,7 @@ class VuetApp extends ConsumerWidget {
 // Error screen for router errors
 class ErrorScreen extends StatelessWidget {
   final Exception? error;
-  
+
   const ErrorScreen({
     super.key,
     this.error,

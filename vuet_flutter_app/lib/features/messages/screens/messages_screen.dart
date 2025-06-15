@@ -4,11 +4,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:vuet_flutter/core/constants/app_constants.dart';
 import 'package:vuet_flutter/core/utils/logger.dart';
-import 'package:vuet_flutter/features/user/providers/user_provider.dart';
 
 // Models for messages and conversations
 class Message {
@@ -280,7 +277,7 @@ final selectedConversationIdProvider = StateProvider<String?>((ref) => null);
 
 // Main Messages Screen
 class MessagesScreen extends ConsumerStatefulWidget {
-  const MessagesScreen({Key? key}) : super(key: key);
+  const MessagesScreen({super.key});
 
   @override
   ConsumerState<MessagesScreen> createState() => _MessagesScreenState();
@@ -553,8 +550,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                           Container(
                             width: 10.w,
                             height: 10.w,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFD2691E),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFD2691E),
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -631,10 +628,10 @@ class ConversationScreen extends ConsumerStatefulWidget {
   final VoidCallback onBack;
   
   const ConversationScreen({
-    Key? key,
+    super.key,
     required this.conversation,
     required this.onBack,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<ConversationScreen> createState() => _ConversationScreenState();

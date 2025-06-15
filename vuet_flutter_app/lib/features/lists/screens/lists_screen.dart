@@ -4,9 +4,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:go_router/go_router.dart';
-import 'package:vuet_flutter/core/constants/app_constants.dart';
-import 'package:vuet_flutter/core/utils/logger.dart';
 import 'package:vuet_flutter/features/user/providers/user_provider.dart';
 
 // Tab index provider
@@ -322,7 +319,7 @@ final familyMembersProvider = Provider<List<UserSummary>>((ref) {
 });
 
 class ListsScreen extends ConsumerStatefulWidget {
-  const ListsScreen({Key? key}) : super(key: key);
+  const ListsScreen({super.key});
 
   @override
   ConsumerState<ListsScreen> createState() => _ListsScreenState();
@@ -513,7 +510,7 @@ class _ListsScreenState extends ConsumerState<ListsScreen> with SingleTickerProv
                   Navigator.of(context).pop();
                 },
               );
-            }).toList(),
+            }),
           ],
         ),
         actions: [
@@ -875,7 +872,7 @@ class _ListsScreenState extends ConsumerState<ListsScreen> with SingleTickerProv
                             ),
                           ),
                         );
-                      }).toList(),
+                      }),
                     ],
                   ),
                 ),

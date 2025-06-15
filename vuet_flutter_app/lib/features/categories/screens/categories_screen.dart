@@ -7,7 +7,6 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vuet_flutter/core/constants/app_constants.dart';
 import 'package:vuet_flutter/core/utils/logger.dart';
-import 'package:vuet_flutter/features/categories/providers/categories_provider.dart';
 
 // Provider for professional categories (would be replaced with real data from Supabase)
 final professionalCategoriesProvider = FutureProvider<List<ProfessionalCategory>>((ref) async {
@@ -43,7 +42,7 @@ class ProfessionalCategory {
 }
 
 class CategoriesScreen extends ConsumerStatefulWidget {
-  const CategoriesScreen({Key? key}) : super(key: key);
+  const CategoriesScreen({super.key});
 
   @override
   ConsumerState<CategoriesScreen> createState() => _CategoriesScreenState();

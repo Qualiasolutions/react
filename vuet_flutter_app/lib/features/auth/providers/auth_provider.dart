@@ -2,7 +2,6 @@
 // Authentication provider that replicates Redux auth state from React Native app
 
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // Hide Supabase's `Provider` enum to avoid a name clash with Riverpod's `Provider`
 import 'package:supabase_flutter/supabase_flutter.dart' hide Provider;
@@ -62,7 +61,7 @@ class AuthState {
   /// Create an authenticated state
   AuthState authenticated({
     required String accessToken,
-    required String refreshToken,
+    required String? refreshToken,
     required String userId,
   }) {
     return copyWith(
@@ -92,7 +91,7 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   final SupabaseClient _supabase;
   StreamSubscription<AuthState>? _authSubscription;
-  
+
   AuthNotifier(this._supabase) : super(const AuthState(isLoading: true)) {
     // Initialize auth state
     _initAuthState();
@@ -101,22 +100,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Initialize authentication state from session
   Future<void> _initAuthState() async {
     try {
-      final session = _supabase.auth.currentSession;
-      
-      if (session != null) {
-        state = state.authenticated(
-          accessToken: session.accessToken,
-          refreshToken: session.refreshToken,
-          userId: session.user.id,
-        );
-      } else {
-        state = state.unauthenticated();
-      }
-      
+      // Add timeout to prevent infinite loading
+      final session = await Future.value(_supabase.auth.currentSession)
+          .timeout(const Duration(seconds: 5));
+
+      state = state.authenticated(
+        accessToken: session.accessToken,
+        refreshToken: session.refreshToken,
+        userId: session.user.id,
+      );
+      Logger.debug('User authenticated: ${session.user.email}');
+    
       // Listen for auth state changes
       _listenToAuthChanges();
     } catch (e, st) {
       Logger.error('Failed to initialize auth state', e, st);
+      // Ensure we exit loading state even on error
       state = state.unauthenticated();
     }
   }
@@ -124,11 +123,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Listen to authentication changes from Supabase
   void _listenToAuthChanges() {
     final controller = StreamController<AuthState>.broadcast();
-    
+
     _supabase.auth.onAuthStateChange.listen((data) {
       final AuthChangeEvent event = data.event;
       final Session? session = data.session;
-      
+
       switch (event) {
         case AuthChangeEvent.signedIn:
         case AuthChangeEvent.tokenRefreshed:
@@ -151,7 +150,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           break;
       }
     });
-    
+
     state = state.copyWith(stream: controller.stream);
   }
 
@@ -162,12 +161,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }) async {
     try {
       state = state.loading();
-      
+
       final response = await _supabase.auth.signInWithPassword(
         email: email,
         password: password,
       );
-      
+
       if (response.session != null) {
         state = state.authenticated(
           accessToken: response.session!.accessToken,
@@ -191,13 +190,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }) async {
     try {
       state = state.loading();
-      
+
       final response = await _supabase.auth.signUp(
         email: email,
         password: password,
         data: {'full_name': name},
       );
-      
+
       if (response.session != null) {
         // Create profile record
         await _supabase.from('profiles').insert({
@@ -206,7 +205,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           'full_name': name,
           'has_completed_setup': false,
         });
-        
+
         state = state.authenticated(
           accessToken: response.session!.accessToken,
           refreshToken: response.session!.refreshToken,
@@ -225,11 +224,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> sendPhoneVerification({required String phone}) async {
     try {
       state = state.loading();
-      
+
       await _supabase.auth.signInWithOtp(
         phone: phone,
       );
-      
+
       // Phone verification sent - we'll stay in loading state until verified
       state = state.copyWith(isLoading: false);
     } catch (e, st) {
@@ -245,13 +244,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }) async {
     try {
       state = state.loading();
-      
+
       final response = await _supabase.auth.verifyOTP(
         phone: phone,
         token: otp,
         type: OtpType.sms,
       );
-      
+
       if (response.session != null) {
         state = state.authenticated(
           accessToken: response.session!.accessToken,
@@ -271,11 +270,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> resetPassword({required String email}) async {
     try {
       state = state.loading();
-      
+
       await _supabase.auth.resetPasswordForEmail(
         email,
       );
-      
+
       state = state.copyWith(isLoading: false);
     } catch (e, st) {
       Logger.error('Password reset error', e, st);
@@ -287,9 +286,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> signOut() async {
     try {
       state = state.loading();
-      
+
       await _supabase.auth.signOut();
-      
+
       state = state.unauthenticated();
     } catch (e, st) {
       Logger.error('Sign out error', e, st);
@@ -306,9 +305,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (state.userId == null) {
         throw Exception('User not authenticated');
       }
-      
+
       state = state.loading();
-      
+
       // Update auth user if phone is provided
       if (phone != null) {
         await _supabase.auth.updateUser(
@@ -317,14 +316,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
           ),
         );
       }
-      
+
       // Update profile if fullName is provided
       if (fullName != null) {
         await _supabase.from('profiles').update({
           'full_name': fullName,
         }).eq('id', state.userId);
       }
-      
+
       // Refresh state with current session
       final session = _supabase.auth.currentSession;
       if (session != null) {
@@ -348,11 +347,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (state.userId == null) {
         throw Exception('User not authenticated');
       }
-      
+
       await _supabase.from('profiles').update({
         'has_completed_setup': true,
       }).eq('id', state.userId);
-      
     } catch (e, st) {
       Logger.error('Complete user setup error', e, st);
     }

@@ -13,7 +13,7 @@ import 'package:vuet_flutter/features/family/providers/family_provider.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 
 class MyFamiliesScreen extends ConsumerStatefulWidget {
-  const MyFamiliesScreen({Key? key}) : super(key: key);
+  const MyFamiliesScreen({super.key});
 
   @override
   ConsumerState<MyFamiliesScreen> createState() => _MyFamiliesScreenState();

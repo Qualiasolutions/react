@@ -1,13 +1,14 @@
 // lib/main.dart
 // Main application entry point with simplified routing and provider setup
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide Provider;
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -17,9 +18,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 
 // Core
-import 'package:vuet_flutter/core/constants/app_constants.dart';
 import 'package:vuet_flutter/core/theme/app_theme.dart';
-import 'package:vuet_flutter/core/utils/logger.dart';
 
 // Features
 import 'package:vuet_flutter/features/auth/providers/auth_provider.dart';
@@ -29,19 +28,18 @@ import 'package:vuet_flutter/features/auth/screens/register_screen.dart';
 import 'package:vuet_flutter/features/auth/screens/verify_phone_screen.dart';
 import 'package:vuet_flutter/features/auth/screens/forgot_password_screen.dart';
 import 'package:vuet_flutter/features/main/screens/side_navigator.dart';
-import 'package:vuet_flutter/features/user/providers/user_provider.dart';
 
 void main() async {
   // Keep splash screen visible while initializing
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
-  
+
   // Load environment variables
   await dotenv.load(fileName: ".env");
-  
+
   // Initialize timezone data
   tz.initializeTimeZones();
-  
+
   // Initialize Supabase
   await Supabase.initialize(
     url: dotenv.env['SUPABASE_URL'] ?? '',
@@ -49,10 +47,10 @@ void main() async {
     debug: false,
     localStorage: const SecureLocalStorage(),
   );
-  
+
   // Initialize shared preferences for app settings
   final sharedPreferences = await SharedPreferences.getInstance();
-  
+
   // Initialize Sentry for error tracking
   await SentryFlutter.init(
     (options) {
@@ -69,14 +67,19 @@ void main() async {
       ),
     ),
   );
-  
+
   // Configure toast notifications
   configureEasyLoading();
 }
 
 // Secure storage for Supabase
 class SecureLocalStorage extends LocalStorage {
-  const SecureLocalStorage();
+  const SecureLocalStorage() : super(
+    accessToken: null,
+    refreshToken: null,
+    providerToken: null,
+    providerRefreshToken: null,
+  );
   static const _storage = FlutterSecureStorage();
 
   @override
@@ -140,7 +143,7 @@ class FamilyInvitesState {
 }
 
 class VuetApp extends ConsumerStatefulWidget {
-  const VuetApp({Key? key}) : super(key: key);
+  const VuetApp({super.key});
 
   @override
   ConsumerState<VuetApp> createState() => _VuetAppState();
@@ -150,10 +153,10 @@ class _VuetAppState extends ConsumerState<VuetApp> {
   @override
   void initState() {
     super.initState();
-    
+
     // Remove splash screen after initialization
     FlutterNativeSplash.remove();
-    
+
     // Set preferred orientations
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
@@ -165,7 +168,7 @@ class _VuetAppState extends ConsumerState<VuetApp> {
   Widget build(BuildContext context) {
     // Watch auth state for navigation
     final authState = ref.watch(authStateProvider);
-    
+
     // Configure router with simplified auth guards
     final router = GoRouter(
       initialLocation: '/',
@@ -176,21 +179,22 @@ class _VuetAppState extends ConsumerState<VuetApp> {
         if (authState.isLoading) {
           return '/splash';
         }
-        
+
         // Handle unauthenticated state
         if (!authState.isAuthenticated) {
           // Allow access to auth screens
-          if (state.location.startsWith('/auth')) {
+          if (state.uri.toString().startsWith('/auth')) {
             return null;
           }
           return '/auth/login';
         }
-        
+
         // Redirect to home if trying to access auth screens while authenticated
-        if (state.location.startsWith('/auth') || state.location == '/splash') {
+        if (state.uri.toString().startsWith('/auth') ||
+            state.uri.toString() == '/splash') {
           return '/';
         }
-        
+
         // No redirection needed
         return null;
       },
@@ -200,7 +204,7 @@ class _VuetAppState extends ConsumerState<VuetApp> {
           path: '/splash',
           builder: (context, state) => const SplashScreen(),
         ),
-        
+
         // Auth routes
         GoRoute(
           path: '/auth/login',
@@ -221,7 +225,7 @@ class _VuetAppState extends ConsumerState<VuetApp> {
           path: '/auth/forgot-password',
           builder: (context, state) => const ForgotPasswordScreen(),
         ),
-        
+
         // Main app routes
         GoRoute(
           path: '/',
@@ -256,9 +260,9 @@ class _VuetAppState extends ConsumerState<VuetApp> {
             // Apply font scaling
             final mediaQuery = MediaQuery.of(context);
             final scale = mediaQuery.textScaleFactor.clamp(0.8, 1.2);
-            
+
             return MediaQuery(
-              data: mediaQuery.copyWith(textScaleFactor: scale),
+              data: mediaQuery.copyWith(textScaler: TextScaler.linear(scale)),
               child: EasyLoading.init()(context, child),
             );
           },
@@ -271,9 +275,9 @@ class _VuetAppState extends ConsumerState<VuetApp> {
 // Error screen
 class ErrorScreen extends StatelessWidget {
   final Exception? error;
-  
-  const ErrorScreen({Key? key, this.error}) : super(key: key);
-  
+
+  const ErrorScreen({super.key, this.error});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

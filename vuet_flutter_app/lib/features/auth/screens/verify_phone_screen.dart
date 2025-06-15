@@ -14,7 +14,7 @@ import 'package:flutter_easyloading/flutter_easyloading.dart';
 class VerifyPhoneScreen extends ConsumerStatefulWidget {
   /// Optional phone number that we already know.
   /// If `null`, we fall back to the value passed via `GoRouter` `extra`.
-  const VerifyPhoneScreen({Key? key, this.phone}) : super(key: key);
+  const VerifyPhoneScreen({super.key, this.phone});
 
   final String? phone;
 

@@ -25,7 +25,7 @@ final familyDetailsForInviteProvider = FutureProvider.family<Family?, String>((r
 });
 
 class FamilyInvitesScreen extends ConsumerStatefulWidget {
-  const FamilyInvitesScreen({Key? key}) : super(key: key);
+  const FamilyInvitesScreen({super.key});
 
   @override
   ConsumerState<FamilyInvitesScreen> createState() => _FamilyInvitesScreenState();

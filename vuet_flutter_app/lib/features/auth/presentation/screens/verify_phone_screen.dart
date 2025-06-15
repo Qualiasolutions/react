@@ -12,10 +12,10 @@ class VerifyPhoneScreen extends ConsumerStatefulWidget {
   final dynamic extraData; // Can be String (phone) or Map (phone + name)
 
   const VerifyPhoneScreen({
-    Key? key,
+    super.key,
     required this.method,
     this.extraData,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<VerifyPhoneScreen> createState() => _VerifyPhoneScreenState();

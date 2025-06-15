@@ -2,7 +2,6 @@
 // Simplified entity model without freezed dependencies for basic operations
 
 import 'package:flutter/material.dart';
-import 'package:vuet_flutter/core/constants/app_constants.dart';
 
 /// Entity type enum for type safety
 enum EntityType {
@@ -417,7 +416,7 @@ class SimpleEntityModel {
   String get displayName {
     switch (type) {
       case EntityType.car:
-        return '${getMetadata<String>('make') ?? ''} ${getMetadata<String>('model') ?? ''} ${name}'.trim();
+        return '${getMetadata<String>('make') ?? ''} ${getMetadata<String>('model') ?? ''} $name'.trim();
       case EntityType.person:
         return name;
       case EntityType.event:

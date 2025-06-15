@@ -7,11 +7,10 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vuet_flutter/core/utils/logger.dart';
-import 'package:vuet_flutter/features/auth/providers/auth_provider.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 
 class FamilyRequestNavigator extends ConsumerStatefulWidget {
-  const FamilyRequestNavigator({Key? key}) : super(key: key);
+  const FamilyRequestNavigator({super.key});
 
   @override
   ConsumerState<FamilyRequestNavigator> createState() => _FamilyRequestNavigatorState();
