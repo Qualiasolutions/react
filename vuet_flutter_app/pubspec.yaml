@@ -47,6 +47,14 @@ dependencies:
   
   # Notifications
   flutter_local_notifications: ^16.1.0
+
+  # Environment & Error tracking
+  flutter_dotenv: ^5.0.2            # Load .env at runtime
+  sentry_flutter: ^7.16.0           # Crash/trace reporting
+  flutter_easyloading: ^3.0.5       # Toast / loading HUD
+
+  # Fonts & UI polish
+  google_fonts: ^6.1.0              # Match RN typography
   # Firebase dependencies temporarily removed to unblock Web build.
   # firebase_core: ^2.24.2
   # firebase_messaging: ^14.7.10
@@ -68,6 +76,10 @@ dependencies:
   # Phone number handling (for auth)
   phone_number: ^2.0.1
   libphonenumber_plugin: ^0.3.3
+
+  # Flutter SDK localisations
+  flutter_localizations:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:
