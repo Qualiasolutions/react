@@ -15,7 +15,7 @@ class AuthState {
   final String? refreshToken;
   final String? userId;
   final String? error;
-  final Stream<AuthState>? stream;
+  final Stream<AuthState>? _stream;
 
   const AuthState({
     this.isAuthenticated = false,
@@ -24,8 +24,11 @@ class AuthState {
     this.refreshToken,
     this.userId,
     this.error,
-    this.stream,
-  });
+    Stream<AuthState>? stream,
+  }) : _stream = stream;
+
+  /// Stream getter for GoRouter refreshListenable
+  Stream<AuthState> get stream => _stream ?? Stream.value(this);
 
   /// Create a copy of this state with specified fields updated
   AuthState copyWith({
@@ -44,7 +47,7 @@ class AuthState {
       refreshToken: refreshToken ?? this.refreshToken,
       userId: userId ?? this.userId,
       error: error ?? this.error,
-      stream: stream ?? this.stream,
+      stream: stream ?? _stream,
     );
   }
 
@@ -91,8 +94,9 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   final SupabaseClient _supabase;
   StreamSubscription<AuthState>? _authSubscription;
+  final StreamController<AuthState> _stateStreamController = StreamController<AuthState>.broadcast();
 
-  AuthNotifier(this._supabase) : super(const AuthState(isLoading: true)) {
+  AuthNotifier(this._supabase) : super(AuthState(isLoading: true, stream: null)) {
     // Initialize auth state
     _initAuthState();
   }
@@ -104,26 +108,36 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final session = await Future.value(_supabase.auth.currentSession)
           .timeout(const Duration(seconds: 5));
 
-      state = state.authenticated(
-        accessToken: session.accessToken,
-        refreshToken: session.refreshToken,
-        userId: session.user.id,
-      );
-      Logger.debug('User authenticated: ${session.user.email}');
+      // Set up the stream before updating state
+      final stateStream = _stateStreamController.stream;
+      
+      if (session != null) {
+        state = state.authenticated(
+          accessToken: session.accessToken,
+          refreshToken: session.refreshToken,
+          userId: session.user.id,
+        ).copyWith(stream: stateStream);
+        
+        Logger.debug('User authenticated: ${session.user.email}');
+      } else {
+        state = state.unauthenticated().copyWith(stream: stateStream);
+      }
+      
+      // Emit the initial state to the stream
+      _stateStreamController.add(state);
     
       // Listen for auth state changes
       _listenToAuthChanges();
     } catch (e, st) {
       Logger.error('Failed to initialize auth state', e, st);
       // Ensure we exit loading state even on error
-      state = state.unauthenticated();
+      state = state.unauthenticated().copyWith(stream: _stateStreamController.stream);
+      _stateStreamController.add(state);
     }
   }
 
   /// Listen to authentication changes from Supabase
   void _listenToAuthChanges() {
-    final controller = StreamController<AuthState>.broadcast();
-
     _supabase.auth.onAuthStateChange.listen((data) {
       final AuthChangeEvent event = data.event;
       final Session? session = data.session;
@@ -138,20 +152,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
               refreshToken: session.refreshToken,
               userId: session.user.id,
             );
-            controller.add(state);
+            _stateStreamController.add(state);
           }
           break;
         case AuthChangeEvent.signedOut:
         case AuthChangeEvent.userDeleted:
           state = state.unauthenticated();
-          controller.add(state);
+          _stateStreamController.add(state);
           break;
         default:
           break;
       }
     });
-
-    state = state.copyWith(stream: controller.stream);
   }
 
   /// Sign in with email and password
@@ -161,6 +173,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }) async {
     try {
       state = state.loading();
+      _stateStreamController.add(state);
 
       final response = await _supabase.auth.signInWithPassword(
         email: email,
@@ -176,9 +189,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
       } else {
         state = state.withError('Authentication failed');
       }
+      _stateStreamController.add(state);
     } catch (e, st) {
       Logger.error('Sign in error', e, st);
       state = state.withError(e.toString());
+      _stateStreamController.add(state);
     }
   }
 
@@ -190,6 +205,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }) async {
     try {
       state = state.loading();
+      _stateStreamController.add(state);
 
       final response = await _supabase.auth.signUp(
         email: email,
@@ -214,9 +230,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
       } else {
         state = state.withError('Registration failed');
       }
+      _stateStreamController.add(state);
     } catch (e, st) {
       Logger.error('Sign up error', e, st);
       state = state.withError(e.toString());
+      _stateStreamController.add(state);
     }
   }
 
@@ -224,6 +242,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> sendPhoneVerification({required String phone}) async {
     try {
       state = state.loading();
+      _stateStreamController.add(state);
 
       await _supabase.auth.signInWithOtp(
         phone: phone,
@@ -231,9 +250,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       // Phone verification sent - we'll stay in loading state until verified
       state = state.copyWith(isLoading: false);
+      _stateStreamController.add(state);
     } catch (e, st) {
       Logger.error('Phone verification error', e, st);
       state = state.withError(e.toString());
+      _stateStreamController.add(state);
     }
   }
 
@@ -244,6 +265,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }) async {
     try {
       state = state.loading();
+      _stateStreamController.add(state);
 
       final response = await _supabase.auth.verifyOTP(
         phone: phone,
@@ -260,9 +282,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
       } else {
         state = state.withError('Phone verification failed');
       }
+      _stateStreamController.add(state);
     } catch (e, st) {
       Logger.error('OTP verification error', e, st);
       state = state.withError(e.toString());
+      _stateStreamController.add(state);
     }
   }
 
@@ -270,15 +294,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> resetPassword({required String email}) async {
     try {
       state = state.loading();
+      _stateStreamController.add(state);
 
       await _supabase.auth.resetPasswordForEmail(
         email,
       );
 
       state = state.copyWith(isLoading: false);
+      _stateStreamController.add(state);
     } catch (e, st) {
       Logger.error('Password reset error', e, st);
       state = state.withError(e.toString());
+      _stateStreamController.add(state);
     }
   }
 
@@ -286,13 +313,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> signOut() async {
     try {
       state = state.loading();
+      _stateStreamController.add(state);
 
       await _supabase.auth.signOut();
 
       state = state.unauthenticated();
+      _stateStreamController.add(state);
     } catch (e, st) {
       Logger.error('Sign out error', e, st);
       state = state.withError(e.toString());
+      _stateStreamController.add(state);
     }
   }
 
@@ -307,6 +337,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
 
       state = state.loading();
+      _stateStreamController.add(state);
 
       // Update auth user if phone is provided
       if (phone != null) {
@@ -335,9 +366,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
       } else {
         state = state.unauthenticated();
       }
+      _stateStreamController.add(state);
     } catch (e, st) {
       Logger.error('Update profile error', e, st);
       state = state.withError(e.toString());
+      _stateStreamController.add(state);
     }
   }
 
@@ -359,6 +392,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   @override
   void dispose() {
     _authSubscription?.cancel();
+    _stateStreamController.close();
     super.dispose();
   }
 }

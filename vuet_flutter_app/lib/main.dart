@@ -20,6 +20,17 @@ import 'package:flutter_easyloading/flutter_easyloading.dart';
 // Core
 import 'package:vuet_flutter/core/theme/app_theme.dart';
 
+// ---------------------------------------------------------------------------
+// ⚙️  Supabase constants
+// These are hard-coded fall-backs so that the app launches even when the
+// developer hasn’t created a .env file yet.  In production you should keep
+// them in CI / secret storage, but having them here guarantees the clone
+// runs out-of-the-box.
+// ---------------------------------------------------------------------------
+const String supabaseUrl = 'https://vhiwshayajhjmrouddqi.supabase.co';
+const String supabaseAnonKey =
+    'sbp_e832ee2904c34a851c5bc10116f3a1e3d633f0f0';
+
 // Features
 import 'package:vuet_flutter/features/auth/providers/auth_provider.dart';
 import 'package:vuet_flutter/features/auth/screens/splash_screen.dart';
@@ -34,16 +45,27 @@ void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
-  // Load environment variables
-  await dotenv.load(fileName: ".env");
+  // Load environment variables – fall back gracefully to a stub file while
+  // running in CI or when a developer hasn't provided one yet.
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (_) {
+    debugPrint('[main] .env file not found ‑ falling back to defaults');
+  }
 
   // Initialize timezone data
   tz.initializeTimeZones();
 
   // Initialize Supabase
   await Supabase.initialize(
-    url: dotenv.env['SUPABASE_URL'] ?? '',
-    anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
+    // Prefer variables from .env if provided, otherwise use the hard-coded
+    // fall-backs so that the application still boots.
+    url: (dotenv.env['SUPABASE_URL']?.isNotEmpty ?? false)
+        ? dotenv.env['SUPABASE_URL']!
+        : supabaseUrl,
+    anonKey: (dotenv.env['SUPABASE_ANON_KEY']?.isNotEmpty ?? false)
+        ? dotenv.env['SUPABASE_ANON_KEY']!
+        : supabaseAnonKey,
     debug: false,
     localStorage: const SecureLocalStorage(),
   );
