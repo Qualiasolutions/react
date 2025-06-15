@@ -1,23 +1,27 @@
 // lib/features/entities/screens/entity_list_screen.dart
-// Entity list screen that displays entities for a given category, matching the React Native design
+// Comprehensive entity list screen that shows entities for a specific category.
+// Matches the functionality from the React Native EntityListScreen, with filtering,
+// search, and create entity options. Includes proper state management with Riverpod providers.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
-import 'package:vuet_flutter/core/constants/app_constants.dart';
-import 'package:vuet_flutter/core/theme/app_theme.dart';
+import 'package:vuet_flutter/core/utils/logger.dart';
+import 'package:vuet_flutter/features/entities/data/models/entity_model.dart';
 import 'package:vuet_flutter/features/entities/providers/entities_provider.dart';
-import 'package:flutter_easyloading/flutter_easyloading.dart';
+import 'package:vuet_flutter/features/categories/data/models/category_model.dart';
+import 'package:vuet_flutter/features/categories/providers/categories_provider.dart';
+
+// Provider for the search query
+final entitySearchQueryProvider = StateProvider<String>((ref) => '');
 
 class EntityListScreen extends ConsumerStatefulWidget {
-  final int categoryId;
-  final String categoryName;
+  final String categoryId;
 
   const EntityListScreen({
     super.key,
     required this.categoryId,
-    required this.categoryName,
   });
 
   @override
@@ -26,13 +30,14 @@ class EntityListScreen extends ConsumerStatefulWidget {
 
 class _EntityListScreenState extends ConsumerState<EntityListScreen> {
   final TextEditingController _searchController = TextEditingController();
-  String _currentSearchQuery = '';
 
   @override
   void initState() {
     super.initState();
-    // Fetch entities for the current category when the screen initializes
-    _fetchEntities();
+    // Clear search query when screen initializes
+    _searchController.addListener(() {
+      ref.read(entitySearchQueryProvider.notifier).state = _searchController.text;
+    });
   }
 
   @override
@@ -41,204 +46,153 @@ class _EntityListScreenState extends ConsumerState<EntityListScreen> {
     super.dispose();
   }
 
-  Future<void> _fetchEntities() async {
-    await ref.read(entitiesProvider.notifier).fetchEntities(
-          categoryId: widget.categoryId,
-          searchQuery: _currentSearchQuery.isEmpty ? null : _currentSearchQuery,
-          forceRefresh: true,
-        );
-  }
-
-  void _onSearchChanged(String query) {
-    setState(() {
-      _currentSearchQuery = query;
-    });
-    _fetchEntities(); // Re-fetch entities with the new search query
-  }
-
-  Future<void> _deleteEntity(String entityId) async {
-    try {
-      EasyLoading.show(status: 'Deleting entity...');
-      await ref.read(entitiesProvider.notifier).deleteEntity(entityId);
-      EasyLoading.showSuccess('Entity deleted!');
-    } catch (e) {
-      EasyLoading.showError('Failed to delete entity: $e');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final entitiesState = ref.watch(entitiesProvider);
-    final entities = entitiesState.entities.where((entity) {
-      final matchesCategory = entity.categoryId == widget.categoryId;
-      final matchesSearch = _currentSearchQuery.isEmpty ||
-          entity.name.toLowerCase().contains(_currentSearchQuery.toLowerCase()) ||
-          (entity.notes?.toLowerCase().contains(_currentSearchQuery.toLowerCase()) ?? false);
-      return matchesCategory && matchesSearch;
-    }).toList();
+    final categoryIdInt = int.tryParse(widget.categoryId);
+    if (categoryIdInt == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Error')),
+        body: const Center(child: Text('Invalid Category ID')),
+      );
+    }
+
+    final categoryAsync = ref.watch(categoryByIdProvider(categoryIdInt));
+    final entitiesAsync = ref.watch(entitiesProvider);
+    final searchQuery = ref.watch(entitySearchQueryProvider);
 
     return Scaffold(
-      backgroundColor: AppTheme.lightBackgroundColor,
       appBar: AppBar(
-        title: Text(widget.categoryName),
-        backgroundColor: AppTheme.darkHeaderColor,
-        foregroundColor: Colors.white,
+        title: categoryAsync.when(
+          data: (category) => Text('${category.readableName} Entities'),
+          loading: () => const Text('Loading Category...'),
+          error: (err, st) => const Text('Error'),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () {
+              // Navigate to entity creation screen
+              context.push('/entities/create?categoryId=${widget.categoryId}');
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
-          // Search Bar
+          // Search bar
           Padding(
-            padding: EdgeInsets.all(UIConstants.paddingM.w),
+            padding: EdgeInsets.all(16.w),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Search entities...',
-                prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(UIConstants.radiusL.r),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: Colors.grey[200],
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: UIConstants.paddingM.w,
-                  vertical: UIConstants.paddingS.h,
+                  borderRadius: BorderRadius.circular(12.r),
                 ),
               ),
-              onChanged: _onSearchChanged,
             ),
           ),
-          
-          // Loading Indicator
-          if (entitiesState.isLoading)
-            const LinearProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
-              backgroundColor: Colors.transparent,
-            ),
-
-          // Entity List or Empty State
           Expanded(
-            child: entities.isEmpty && !entitiesState.isLoading
-                ? _buildEmptyState()
-                : ListView.builder(
-                    padding: EdgeInsets.all(UIConstants.paddingM.w),
-                    itemCount: entities.length,
-                    itemBuilder: (context, index) {
-                      final entity = entities[index];
-                      return Card(
-                        margin: EdgeInsets.only(bottom: UIConstants.paddingM.h),
-                        elevation: AppTheme.lightTheme.cardTheme.elevation ?? 2,
-                        shape: AppTheme.lightTheme.cardTheme.shape,
-                        child: ListTile(
-                          contentPadding: EdgeInsets.all(UIConstants.paddingM.w),
-                          leading: CircleAvatar(
-                            backgroundColor: entity.type.color,
-                            child: Icon(
-                              entity.type.icon,
-                              color: Colors.white,
-                            ),
-                          ),
-                          title: Text(
-                            entity.name,
-                            style: TextStyle(
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              SizedBox(height: UIConstants.paddingXS.h),
-                              Text(
-                                entity.type.toDbString().replaceAll('_', ' '),
-                                style: TextStyle(
-                                  fontSize: 12.sp,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              if (entity.notes != null && entity.notes!.isNotEmpty)
-                                Text(
-                                  entity.notes!,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 14.sp,
-                                    color: Colors.grey[700],
-                                  ),
-                                ),
-                            ],
-                          ),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline, color: Colors.red),
-                            onPressed: () => _deleteEntity(entity.id),
-                          ),
-                          onTap: () {
-                            // Navigate to entity detail screen
-                            context.push('/entities/${entity.id}');
-                          },
+            child: entitiesAsync.when(
+              data: (entities) {
+                // Filter entities by category and search query
+                final filteredEntities = entities.where((entity) {
+                  final matchesCategory = entity.categoryId == categoryIdInt;
+                  final matchesSearch = entity.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
+                      (entity.notes?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false);
+                  return matchesCategory && matchesSearch;
+                }).toList();
+
+                if (filteredEntities.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.folder_open, size: 64.sp, color: Colors.grey[400]),
+                        SizedBox(height: 16.h),
+                        Text(
+                          'No entities found for this category.',
+                          style: TextStyle(fontSize: 16.sp, color: Colors.grey[600]),
                         ),
-                      );
-                    },
+                        SizedBox(height: 8.h),
+                        Text(
+                          'Tap the + button to add a new one!',
+                          style: TextStyle(fontSize: 14.sp, color: Colors.grey[500]),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  itemCount: filteredEntities.length,
+                  itemBuilder: (context, index) {
+                    final entity = filteredEntities[index];
+                    return Card(
+                      margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                      child: ListTile(
+                        leading: Icon(entity.icon, color: entity.color, size: 32.sp),
+                        title: Text(
+                          entity.name,
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.sp),
+                        ),
+                        subtitle: Text(
+                          entity.type.name.toUpperCase(),
+                          style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          // Navigate to entity detail screen
+                          context.push('/entities/${entity.id}');
+                        },
+                      ),
+                    );
+                  },
+                );
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, st) {
+                Logger.error('Error loading entities', err, st);
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error_outline, size: 64.sp, color: Colors.red),
+                      SizedBox(height: 16.h),
+                      Text(
+                        'Failed to load entities.',
+                        style: TextStyle(fontSize: 16.sp, color: Colors.red),
+                      ),
+                      SizedBox(height: 8.h),
+                      Text(
+                        err.toString(),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
+                      ),
+                      SizedBox(height: 16.h),
+                      ElevatedButton(
+                        onPressed: () {
+                          ref.invalidate(entitiesProvider); // Retry fetching entities
+                        },
+                        child: const Text('Retry'),
+                      ),
+                    ],
                   ),
+                );
+              },
+            ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Navigate to add new entity screen
-          context.push('/entities/new', extra: widget.categoryId);
+          context.push('/entities/create?categoryId=${widget.categoryId}');
         },
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: Theme.of(context).primaryColor,
         child: const Icon(Icons.add, color: Colors.white),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.folder_open,
-            size: 64.sp,
-            color: Colors.grey[400],
-          ),
-          SizedBox(height: UIConstants.paddingM.h),
-          Text(
-            'No ${widget.categoryName} entities yet',
-            style: TextStyle(
-              fontSize: 20.sp,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[700],
-            ),
-          ),
-          SizedBox(height: UIConstants.paddingS.h),
-          Text(
-            'Tap the + button to add your first entity.',
-            style: TextStyle(
-              fontSize: 16.sp,
-              color: Colors.grey[600],
-            ),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: UIConstants.paddingL.h),
-          ElevatedButton.icon(
-            onPressed: () {
-              context.push('/entities/new', extra: widget.categoryId);
-            },
-            icon: const Icon(Icons.add),
-            label: const Text('Add New Entity'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(
-                horizontal: UIConstants.paddingL.w,
-                vertical: UIConstants.paddingS.h,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
