@@ -9,7 +9,9 @@ class AppInfo {
   static const String name = 'Vuet';
   static const String version = '1.0.0';
   static const int buildNumber = 1;
-  static const String copyright = '© ${DateTime.now().year} Vuet';
+  /// Dynamic so it reflects the current year without breaking `const` rules
+  static String get copyright =>
+      '© ${DateTime.now().year} Vuet';
   static const String supportEmail = 'support@vuet.app';
 }
 

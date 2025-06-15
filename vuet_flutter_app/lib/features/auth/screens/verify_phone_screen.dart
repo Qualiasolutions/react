@@ -12,7 +12,11 @@ import 'package:vuet_flutter/features/auth/providers/auth_provider.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 
 class VerifyPhoneScreen extends ConsumerStatefulWidget {
-  const VerifyPhoneScreen({Key? key}) : super(key: key);
+  /// Optional phone number that we already know.
+  /// If `null`, we fall back to the value passed via `GoRouter` `extra`.
+  const VerifyPhoneScreen({Key? key, this.phone}) : super(key: key);
+
+  final String? phone;
 
   @override
   ConsumerState<VerifyPhoneScreen> createState() => _VerifyPhoneScreenState();
@@ -44,14 +48,20 @@ class _VerifyPhoneScreenState extends ConsumerState<VerifyPhoneScreen> {
     super.initState();
     // Start resend timer
     _startResendTimer();
+
+    // Preliminary phone assignment; will be finalised in didChangeDependencies
+    _phoneNumber = widget.phone ?? 'your phone';
   }
   
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Get phone number from route
-    final phoneNumber = GoRouterState.of(context).extra as String?;
-    _phoneNumber = phoneNumber ?? 'your phone';
+    // Priority: widget.phone -> route extra -> fallback text
+    if (widget.phone == null) {
+      final phoneNumber = GoRouterState.of(context).extra as String?;
+      _phoneNumber = phoneNumber ?? _phoneNumber;
+    }
   }
 
   @override

@@ -1,3 +1,6 @@
+// lib/main.dart
+// Main application entry point with simplified routing and provider setup
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,18 +28,7 @@ import 'package:vuet_flutter/features/auth/screens/login_screen.dart';
 import 'package:vuet_flutter/features/auth/screens/register_screen.dart';
 import 'package:vuet_flutter/features/auth/screens/verify_phone_screen.dart';
 import 'package:vuet_flutter/features/auth/screens/forgot_password_screen.dart';
-
-// Setup
-import 'package:vuet_flutter/features/setup/screens/setup_navigator.dart';
-
-// Family
-import 'package:vuet_flutter/features/family/screens/family_request_navigator.dart';
-
-// Main App
 import 'package:vuet_flutter/features/main/screens/side_navigator.dart';
-
-// Providers
-import 'package:vuet_flutter/features/categories/providers/categories_provider.dart';
 import 'package:vuet_flutter/features/user/providers/user_provider.dart';
 
 void main() async {
@@ -125,6 +117,28 @@ void configureEasyLoading() {
     ..dismissOnTap = false;
 }
 
+// Simplified family invites provider (placeholder)
+final familyInvitesProvider = Provider<FamilyInvitesState>((ref) {
+  return const FamilyInvitesState(
+    invites: [],
+    isLoading: false,
+    hasInvites: false,
+  );
+});
+
+// Simple state class for family invites
+class FamilyInvitesState {
+  final List<dynamic> invites;
+  final bool isLoading;
+  final bool hasInvites;
+
+  const FamilyInvitesState({
+    required this.invites,
+    required this.isLoading,
+    required this.hasInvites,
+  });
+}
+
 class VuetApp extends ConsumerStatefulWidget {
   const VuetApp({Key? key}) : super(key: key);
 
@@ -152,25 +166,14 @@ class _VuetAppState extends ConsumerState<VuetApp> {
     // Watch auth state for navigation
     final authState = ref.watch(authStateProvider);
     
-    // Watch user details for setup status
-    final userDetails = ref.watch(userDetailsProvider);
-    
-    // Watch family invites
-    final familyInvites = ref.watch(familyInvitesProvider);
-    
-    // Force fetch categories when user is logged in
-    if (authState.isAuthenticated) {
-      ref.read(categoriesProvider);
-    }
-
-    // Configure router with auth guards
+    // Configure router with simplified auth guards
     final router = GoRouter(
       initialLocation: '/',
       debugLogDiagnostics: true,
       refreshListenable: GoRouterRefreshStream(authState.stream),
       redirect: (context, state) {
         // Handle loading state
-        if (authState.isLoading || userDetails.isLoading || familyInvites.isLoading) {
+        if (authState.isLoading) {
           return '/splash';
         }
         
@@ -183,29 +186,8 @@ class _VuetAppState extends ConsumerState<VuetApp> {
           return '/auth/login';
         }
         
-        // Handle family invites
-        if (familyInvites.hasInvites) {
-          // Allow access to family request screens
-          if (state.location.startsWith('/family-request')) {
-            return null;
-          }
-          return '/family-request';
-        }
-        
-        // Handle setup required
-        if (userDetails.data != null && !userDetails.data!.hasCompletedSetup) {
-          // Allow access to setup screens
-          if (state.location.startsWith('/setup')) {
-            return null;
-          }
-          return '/setup';
-        }
-        
         // Redirect to home if trying to access auth screens while authenticated
-        if (state.location.startsWith('/auth') || 
-            state.location.startsWith('/setup') ||
-            state.location.startsWith('/family-request') ||
-            state.location == '/splash') {
+        if (state.location.startsWith('/auth') || state.location == '/splash') {
           return '/';
         }
         
@@ -230,29 +212,20 @@ class _VuetAppState extends ConsumerState<VuetApp> {
         ),
         GoRoute(
           path: '/auth/verify-phone',
-          builder: (context, state) => const VerifyPhoneScreen(),
+          builder: (context, state) {
+            final phone = state.extra as String?;
+            return VerifyPhoneScreen(phone: phone);
+          },
         ),
         GoRoute(
           path: '/auth/forgot-password',
           builder: (context, state) => const ForgotPasswordScreen(),
         ),
         
-        // Setup routes
-        GoRoute(
-          path: '/setup',
-          builder: (context, state) => const SetupNavigator(),
-        ),
-        
-        // Family request routes
-        GoRoute(
-          path: '/family-request',
-          builder: (context, state) => const FamilyRequestNavigator(),
-        ),
-        
         // Main app routes
         GoRoute(
           path: '/',
-          builder: (context, state) => const SideNavigator(hasJustSignedUp: false),
+          builder: (context, state) => const SideNavigator(),
         ),
       ],
       errorBuilder: (context, state) => ErrorScreen(error: state.error),
@@ -269,7 +242,7 @@ class _VuetAppState extends ConsumerState<VuetApp> {
           routerConfig: router,
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
-          themeMode: ref.watch(themeModeProvider),
+          themeMode: ThemeMode.light, // Default to light theme for now
           localizationsDelegates: const [
             GlobalMaterialLocalizations.delegate,
             GlobalWidgetsLocalizations.delegate,
@@ -337,43 +310,20 @@ class ErrorScreen extends StatelessWidget {
 
 // Stream extension for GoRouter
 class GoRouterRefreshStream extends ChangeNotifier {
-  GoRouterRefreshStream(Stream<dynamic> stream) {
+  GoRouterRefreshStream(Stream<dynamic>? stream) {
     notifyListeners();
-    _subscription = stream.asBroadcastStream().listen(
-          (dynamic _) => notifyListeners(),
-        );
+    if (stream != null) {
+      _subscription = stream.asBroadcastStream().listen(
+            (dynamic _) => notifyListeners(),
+          );
+    }
   }
 
-  late final StreamSubscription<dynamic> _subscription;
+  late final StreamSubscription<dynamic>? _subscription;
 
   @override
   void dispose() {
-    _subscription.cancel();
+    _subscription?.cancel();
     super.dispose();
   }
 }
-
-// Theme mode provider
-final themeModeProvider = StateProvider<ThemeMode>((ref) {
-  return ThemeMode.system;
-});
-
-// Family invites provider
-final familyInvitesProvider = FutureProvider<List<dynamic>>((ref) async {
-  if (!ref.watch(authStateProvider).isAuthenticated) {
-    return [];
-  }
-  
-  try {
-    final response = await Supabase.instance.client
-        .from('family_invites')
-        .select()
-        .eq('status', 'PENDING')
-        .eq('email', ref.watch(userDetailsProvider).data?.email);
-    
-    return response as List<dynamic>;
-  } catch (e, st) {
-    Logger.error('Error fetching family invites', e, st);
-    return [];
-  }
-});

@@ -4,7 +4,8 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+// Hide Supabase's `Provider` enum to avoid a name clash with Riverpod's `Provider`
+import 'package:supabase_flutter/supabase_flutter.dart' hide Provider;
 import 'package:vuet_flutter/core/utils/logger.dart';
 
 /// Authentication state class

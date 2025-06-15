@@ -1,8 +1,10 @@
 // lib/features/user/providers/user_provider.dart
 // User provider that fetches and manages user details from Supabase profiles table
 
+import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+// Hide Supabase's Provider enum to avoid clash with Riverpod's Provider
+import 'package:supabase_flutter/supabase_flutter.dart' hide Provider;
 import 'package:vuet_flutter/core/utils/logger.dart';
 import 'package:vuet_flutter/features/auth/providers/auth_provider.dart';
 
@@ -211,7 +213,7 @@ class UserDetailsNotifier extends StateNotifier<UserDetailsState> {
   }
 
   /// Upload avatar image and update user profile
-  Future<void> uploadAvatar(List<int> fileBytes, String fileName) async {
+  Future<void> uploadAvatar(Uint8List fileBytes, String fileName) async {
     if (_userId == null) return;
 
     try {

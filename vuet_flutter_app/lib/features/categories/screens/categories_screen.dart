@@ -1,6 +1,5 @@
 // lib/features/categories/screens/categories_screen.dart
-// Categories screen that shows entity lists and category navigation
-// Exactly matches the React Native UI from the screenshots
+// Categories screen that exactly matches the React Native design from screenshots
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,28 +9,36 @@ import 'package:vuet_flutter/core/constants/app_constants.dart';
 import 'package:vuet_flutter/core/utils/logger.dart';
 import 'package:vuet_flutter/features/categories/providers/categories_provider.dart';
 
-// Selected category provider
-final selectedCategoryProvider = StateProvider<int>((ref) => Categories.family);
-
-// Entity list provider (mock data - would be replaced with Supabase data)
-final entityListProvider = Provider.family<List<EntityItem>?, int>((ref, categoryId) {
-  // In a real app, this would fetch entities from Supabase
-  // For now, return empty lists to show empty states
-  return [];
+// Provider for professional categories (would be replaced with real data from Supabase)
+final professionalCategoriesProvider = FutureProvider<List<ProfessionalCategory>>((ref) async {
+  // In a real app, this would fetch from Supabase
+  await Future.delayed(const Duration(milliseconds: 500)); // Simulate network delay
+  return [
+    ProfessionalCategory(id: '1', name: 'Doctors', entityCount: 3),
+    ProfessionalCategory(id: '2', name: 'Contractors', entityCount: 1),
+    ProfessionalCategory(id: '3', name: 'Schools', entityCount: 2),
+  ];
 });
 
-// Entity item model
-class EntityItem {
+// Provider for entities in each category (would be replaced with real data from Supabase)
+final categoryEntitiesProvider = FutureProvider.family<int, int>((ref, categoryId) async {
+  // In a real app, this would fetch from Supabase
+  await Future.delayed(const Duration(milliseconds: 300)); // Simulate network delay
+  
+  // Return random count for demo purposes
+  return [0, 3, 1, 0, 5, 2, 0, 4, 1, 0, 3, 2, 1][categoryId % 13];
+});
+
+// Model for professional category
+class ProfessionalCategory {
   final String id;
   final String name;
-  final String? imagePath;
-  final int categoryId;
-  
-  EntityItem({
+  final int entityCount;
+
+  ProfessionalCategory({
     required this.id,
     required this.name,
-    this.imagePath,
-    required this.categoryId,
+    required this.entityCount,
   });
 }
 
@@ -43,274 +50,404 @@ class CategoriesScreen extends ConsumerStatefulWidget {
 }
 
 class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
-  String? _quickNavValue;
-  String? _actionValue;
+  // Selected category for quick navigation
+  String? _selectedQuickNavCategory;
   
-  // Quick Nav options
-  final List<String> _quickNavOptions = [
-    'All Categories',
-    'Family',
-    'Pets',
-    'Social & Interests',
-    'Education',
-    'Career',
-    'Travel',
-    'Health & Beauty',
-    'Home',
-    'Garden',
-    'Food',
-    'Laundry',
-    'Finance',
-    'Transport',
-  ];
+  // Controller for professional category name input
+  final TextEditingController _newCategoryController = TextEditingController();
   
-  // Action options
-  final List<String> _actionOptions = [
-    'Add New',
-    'View All',
-    'Filter',
-    'Sort',
-    'Search',
-  ];
-
   @override
-  Widget build(BuildContext context) {
-    final selectedCategoryId = ref.watch(selectedCategoryProvider);
-    final category = ref.watch(categoryByIdProvider(selectedCategoryId));
-    final entities = ref.watch(entityListProvider(selectedCategoryId)) ?? [];
-    final allCategories = ref.watch(coreCategoriesProvider);
-    
-    // Get category name for title
-    final categoryName = category?.readableName ?? 
-                        Categories.names[selectedCategoryId] ?? 
-                        'Categories';
-    
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF4A4A4A),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
-        title: Text(categoryName),
-        centerTitle: true,
-      ),
-      body: Column(
-        children: [
-          // Quick Nav and Action Dropdowns
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-            child: Row(
-              children: [
-                // Quick Nav Dropdown
-                Expanded(
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12.w),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24.r),
-                      border: Border.all(color: Colors.grey[300]!),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _quickNavValue,
-                        hint: const Text('Quick Nav'),
-                        icon: const Icon(Icons.keyboard_arrow_down),
-                        isExpanded: true,
-                        onChanged: (String? newValue) {
-                          setState(() {
-                            _quickNavValue = newValue;
-                            
-                            // Navigate to selected category
-                            if (newValue != null && newValue != 'All Categories') {
-                              final categoryId = allCategories.firstWhere(
-                                (c) => c.readableName == newValue,
-                                orElse: () => allCategories.first,
-                              ).id;
-                              
-                              ref.read(selectedCategoryProvider.notifier).state = categoryId;
-                            }
-                          });
-                        },
-                        items: _quickNavOptions.map<DropdownMenuItem<String>>((String value) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ),
-                ),
-                
-                SizedBox(width: 8.w),
-                
-                // I Want To Dropdown
-                Expanded(
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12.w),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24.r),
-                      border: Border.all(color: Colors.grey[300]!),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _actionValue,
-                        hint: const Text('I Want To'),
-                        icon: const Icon(Icons.keyboard_arrow_down),
-                        isExpanded: true,
-                        onChanged: (String? newValue) {
-                          setState(() {
-                            _actionValue = newValue;
-                            
-                            // Handle action selection
-                            if (newValue == 'Add New') {
-                              _handleAddEntity();
-                            }
-                          });
-                        },
-                        items: _actionOptions.map<DropdownMenuItem<String>>((String value) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+  void dispose() {
+    _newCategoryController.dispose();
+    super.dispose();
+  }
+  
+  // Show dialog to add a new professional category
+  void _showAddProfessionalCategoryDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Professional Category'),
+        content: TextField(
+          controller: _newCategoryController,
+          decoration: const InputDecoration(
+            hintText: 'Category Name',
+            border: OutlineInputBorder(),
           ),
-          
-          // Divider
-          Divider(height: 1, color: Colors.grey[300]),
-          
-          // Entity List or Empty State
-          Expanded(
-            child: entities.isEmpty
-                ? _buildEmptyState(categoryName)
-                : _buildEntityList(entities),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              // In a real app, this would save to Supabase
+              if (_newCategoryController.text.isNotEmpty) {
+                Logger.debug('Adding professional category: ${_newCategoryController.text}');
+                // Close dialog and clear text
+                Navigator.of(context).pop();
+                _newCategoryController.clear();
+              }
+            },
+            child: const Text('Add'),
           ),
         ],
       ),
     );
   }
   
-  // Empty state widget that matches the screenshot
-  Widget _buildEmptyState(String categoryName) {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 32.w),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'You don\'t currently have any $categoryName.',
-              style: TextStyle(
-                fontSize: 18.sp,
-                color: Colors.grey[700],
-              ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 8.h),
-            Text(
-              'Click the + button below to add some',
-              style: TextStyle(
-                fontSize: 16.sp,
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+  // Show quick navigation dropdown
+  void _showQuickNavigation() {
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final RelativeRect position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        button.localToGlobal(Offset.zero, ancestor: overlay),
+        button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
       ),
+      Offset.zero & overlay.size,
     );
-  }
-  
-  // Entity list widget
-  Widget _buildEntityList(List<EntityItem> entities) {
-    return ListView.builder(
-      padding: EdgeInsets.symmetric(vertical: 8.h),
-      itemCount: entities.length,
-      itemBuilder: (context, index) {
-        final entity = entities[index];
-        return Card(
-          margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8.r),
+    
+    showMenu<String>(
+      context: context,
+      position: position,
+      items: [
+        for (final entry in Categories.names.entries)
+          PopupMenuItem<String>(
+            value: entry.key.toString(),
+            child: Text(entry.value),
           ),
-          child: ListTile(
-            leading: entity.imagePath != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(4.r),
-                    child: Image.network(
-                      entity.imagePath!,
-                      width: 50.w,
-                      height: 50.w,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          width: 50.w,
-                          height: 50.w,
-                          color: Colors.grey[300],
-                          child: Icon(
-                            Icons.image_not_supported,
-                            color: Colors.grey[600],
-                          ),
-                        );
-                      },
-                    ),
-                  )
-                : Container(
-                    width: 50.w,
-                    height: 50.w,
-                    color: Colors.grey[300],
-                    child: Icon(
-                      Icons.image_not_supported,
-                      color: Colors.grey[600],
+      ],
+    ).then((value) {
+      if (value != null) {
+        setState(() {
+          _selectedQuickNavCategory = value;
+        });
+        // Navigate to category entities
+        final categoryId = int.parse(value);
+        context.push('/categories/$categoryId');
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Get professional categories
+    final professionalCategoriesAsync = ref.watch(professionalCategoriesProvider);
+    
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
+      body: CustomScrollView(
+        slivers: [
+          // Quick navigation header
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.all(16.w),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Categories',
+                    style: TextStyle(
+                      fontSize: 24.sp,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
                     ),
                   ),
-            title: Text(
-              entity.name,
-              style: TextStyle(
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w500,
+                  // Quick navigation button
+                  ElevatedButton.icon(
+                    onPressed: _showQuickNavigation,
+                    icon: const Icon(Icons.sort, size: 18),
+                    label: const Text('Quick Nav'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[200],
+                      foregroundColor: Colors.black87,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20.r),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              // Navigate to entity details
-              Logger.debug('Navigate to entity details: ${entity.id}');
-            },
           ),
-        );
-      },
-    );
-  }
-  
-  // Handle add entity action
-  void _handleAddEntity() {
-    final categoryId = ref.read(selectedCategoryProvider);
-    final categoryName = ref.read(categoryByIdProvider(categoryId))?.readableName ?? 
-                        Categories.names[categoryId] ?? 
-                        'Item';
-    
-    // In a real app, this would navigate to the appropriate entity form
-    // For now, just show a dialog
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Add $categoryName'),
-        content: Text('Add $categoryName form coming soon!'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+          
+          // Core categories grid
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Core categories header
+                  Text(
+                    'Core Categories',
+                    style: TextStyle(
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  SizedBox(height: 12.h),
+                ],
+              ),
+            ),
+          ),
+          
+          // Core categories grid
+          SliverPadding(
+            padding: EdgeInsets.symmetric(horizontal: 16.w),
+            sliver: SliverGrid(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 1.5,
+                crossAxisSpacing: 12.w,
+                mainAxisSpacing: 12.h,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  // Get category details
+                  final categoryId = Categories.names.keys.elementAt(index);
+                  final categoryName = Categories.names[categoryId]!;
+                  final categoryIcon = Categories.icons[categoryId]!;
+                  final categoryColor = Categories.colors[categoryId]!;
+                  
+                  // Get entity count for this category
+                  final entityCountAsync = ref.watch(categoryEntitiesProvider(categoryId));
+                  
+                  return GestureDetector(
+                    onTap: () {
+                      // Navigate to category entities
+                      context.push('/categories/$categoryId');
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12.r),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Category icon
+                          Icon(
+                            categoryIcon,
+                            size: 32.sp,
+                            color: categoryColor,
+                          ),
+                          SizedBox(height: 8.h),
+                          // Category name
+                          Text(
+                            categoryName,
+                            style: TextStyle(
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          SizedBox(height: 4.h),
+                          // Entity count
+                          entityCountAsync.when(
+                            data: (count) => Text(
+                              count == 0 ? 'No entities' : '$count entities',
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            loading: () => SizedBox(
+                              height: 12.h,
+                              width: 12.h,
+                              child: const CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            ),
+                            error: (_, __) => Text(
+                              'Error',
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                color: Colors.red,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+                childCount: Categories.names.length,
+              ),
+            ),
+          ),
+          
+          // Professional categories section
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.all(16.w),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Professional categories header with add button
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Professional Categories',
+                        style: TextStyle(
+                          fontSize: 18.sp,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      // Add button
+                      IconButton(
+                        icon: const Icon(Icons.add_circle),
+                        color: const Color(0xFFD2691E),
+                        onPressed: _showAddProfessionalCategoryDialog,
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8.h),
+                  
+                  // Professional categories list
+                  professionalCategoriesAsync.when(
+                    data: (categories) {
+                      if (categories.isEmpty) {
+                        // Empty state
+                        return Container(
+                          padding: EdgeInsets.symmetric(vertical: 24.h),
+                          alignment: Alignment.center,
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.category_outlined,
+                                size: 48.sp,
+                                color: Colors.grey[400],
+                              ),
+                              SizedBox(height: 16.h),
+                              Text(
+                                'No professional categories yet',
+                                style: TextStyle(
+                                  fontSize: 16.sp,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              SizedBox(height: 8.h),
+                              Text(
+                                'Add your first professional category',
+                                style: TextStyle(
+                                  fontSize: 14.sp,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                              SizedBox(height: 16.h),
+                              ElevatedButton.icon(
+                                onPressed: _showAddProfessionalCategoryDialog,
+                                icon: const Icon(Icons.add),
+                                label: const Text('Add Category'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFD2691E),
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                      
+                      // List of professional categories
+                      return Column(
+                        children: categories.map((category) {
+                          return Container(
+                            margin: EdgeInsets.only(bottom: 8.h),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8.r),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 2,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            child: ListTile(
+                              title: Text(
+                                category.name,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 16.sp,
+                                ),
+                              ),
+                              subtitle: Text(
+                                '${category.entityCount} entities',
+                                style: TextStyle(
+                                  fontSize: 12.sp,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              trailing: const Icon(
+                                Icons.chevron_right,
+                                color: Colors.grey,
+                              ),
+                              onTap: () {
+                                // Navigate to professional category
+                                context.push('/professional-categories/${category.id}');
+                              },
+                            ),
+                          );
+                        }).toList(),
+                      );
+                    },
+                    loading: () => Center(
+                      child: SizedBox(
+                        height: 24.h,
+                        width: 24.h,
+                        child: const CircularProgressIndicator(),
+                      ),
+                    ),
+                    error: (_, __) => Container(
+                      padding: EdgeInsets.symmetric(vertical: 24.h),
+                      alignment: Alignment.center,
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            size: 48.sp,
+                            color: Colors.red[400],
+                          ),
+                          SizedBox(height: 16.h),
+                          Text(
+                            'Error loading categories',
+                            style: TextStyle(
+                              fontSize: 16.sp,
+                              color: Colors.red[600],
+                            ),
+                          ),
+                          SizedBox(height: 16.h),
+                          ElevatedButton(
+                            onPressed: () {
+                              // Refresh the data
+                              ref.refresh(professionalCategoriesProvider);
+                            },
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),

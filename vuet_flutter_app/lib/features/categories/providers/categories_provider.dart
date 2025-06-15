@@ -1,5 +1,5 @@
 // lib/features/categories/providers/categories_provider.dart
-// Categories provider that replicates the Redux categories slice from React Native
+// Provider for managing categories and professional categories
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,29 +8,26 @@ import 'package:vuet_flutter/core/constants/app_constants.dart';
 import 'package:vuet_flutter/core/utils/logger.dart';
 import 'package:vuet_flutter/features/auth/providers/auth_provider.dart';
 
-/// Category model representing a core or professional category
+/// Category model representing a core category
 class Category {
   final int id;
   final String name;
   final String readableName;
   final bool isPremium;
+  final bool isEnabled;
   final IconData icon;
   final Color color;
-  final bool isProfessional;
-  final String? userId; // Only for professional categories
 
-  const Category({
+  Category({
     required this.id,
     required this.name,
     required this.readableName,
     this.isPremium = false,
+    this.isEnabled = true,
     required this.icon,
     required this.color,
-    this.isProfessional = false,
-    this.userId,
   });
 
-  /// Create from Supabase JSON response for core categories
   factory Category.fromJson(Map<String, dynamic> json) {
     final id = json['id'] as int;
     return Category(
@@ -38,329 +35,361 @@ class Category {
       name: json['name'] as String,
       readableName: json['readable_name'] as String,
       isPremium: json['is_premium'] as bool? ?? false,
-      // Get icon and color from constants based on id
+      isEnabled: json['is_enabled'] as bool? ?? true,
+      // Get icon and color from constants
       icon: Categories.icons[id] ?? Icons.category,
-      color: Categories.colors[id] ?? const Color(0xFF9E9E9E),
+      color: Categories.colors[id] ?? Colors.grey,
     );
-  }
-
-  /// Create from Supabase JSON response for professional categories
-  factory Category.fromProfessionalJson(Map<String, dynamic> json) {
-    return Category(
-      id: json['id'] as int,
-      name: json['name'] as String,
-      readableName: json['name'] as String, // Same as name for professional categories
-      isProfessional: true,
-      userId: json['user_id'] as String?,
-      // Professional categories use a default icon and color
-      icon: Icons.work,
-      color: const Color(0xFF607D8B), // Blue Grey
-    );
-  }
-
-  /// Convert to JSON for Supabase
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'readable_name': readableName,
-      'is_premium': isPremium,
-    };
-  }
-
-  /// Convert professional category to JSON for Supabase
-  Map<String, dynamic> toProfessionalJson() {
-    return {
-      'name': name,
-      'user_id': userId,
-    };
   }
 }
 
-/// Categories state class
+/// Professional category model
+class ProfessionalCategory {
+  final int id;
+  final String userId;
+  final String name;
+  final DateTime createdAt;
+  final int entityCount; // Not stored, calculated on fetch
+
+  ProfessionalCategory({
+    required this.id,
+    required this.userId,
+    required this.name,
+    required this.createdAt,
+    this.entityCount = 0,
+  });
+
+  factory ProfessionalCategory.fromJson(Map<String, dynamic> json) {
+    return ProfessionalCategory(
+      id: json['id'] as int,
+      userId: json['user_id'] as String,
+      name: json['name'] as String,
+      createdAt: DateTime.parse(json['created_at'] as String),
+      entityCount: json['entity_count'] as int? ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'user_id': userId,
+      'name': name,
+      'created_at': createdAt.toIso8601String(),
+    };
+  }
+
+  ProfessionalCategory copyWith({
+    int? id,
+    String? userId,
+    String? name,
+    DateTime? createdAt,
+    int? entityCount,
+  }) {
+    return ProfessionalCategory(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      name: name ?? this.name,
+      createdAt: createdAt ?? this.createdAt,
+      entityCount: entityCount ?? this.entityCount,
+    );
+  }
+}
+
+/// State for core categories
 class CategoriesState {
-  final List<Category> coreCategories;
-  final List<Category> professionalCategories;
+  final List<Category> categories;
   final bool isLoading;
   final String? error;
 
   const CategoriesState({
-    this.coreCategories = const [],
-    this.professionalCategories = const [],
+    this.categories = const [],
     this.isLoading = false,
     this.error,
   });
 
-  /// Create a loading state
-  CategoriesState loading() {
+  CategoriesState copyWith({
+    List<Category>? categories,
+    bool? isLoading,
+    String? error,
+  }) {
     return CategoriesState(
-      coreCategories: coreCategories,
-      professionalCategories: professionalCategories,
-      isLoading: true,
-      error: null,
+      categories: categories ?? this.categories,
+      isLoading: isLoading ?? this.isLoading,
+      error: error,
     );
   }
+}
 
-  /// Create an error state
-  CategoriesState withError(String errorMessage) {
-    return CategoriesState(
-      coreCategories: coreCategories,
-      professionalCategories: professionalCategories,
-      isLoading: false,
-      error: errorMessage,
+/// State for professional categories
+class ProfessionalCategoriesState {
+  final List<ProfessionalCategory> categories;
+  final bool isLoading;
+  final String? error;
+
+  const ProfessionalCategoriesState({
+    this.categories = const [],
+    this.isLoading = false,
+    this.error,
+  });
+
+  ProfessionalCategoriesState copyWith({
+    List<ProfessionalCategory>? categories,
+    bool? isLoading,
+    String? error,
+  }) {
+    return ProfessionalCategoriesState(
+      categories: categories ?? this.categories,
+      isLoading: isLoading ?? this.isLoading,
+      error: error,
     );
   }
+}
 
-  /// Create a state with updated core categories
-  CategoriesState withCoreCategories(List<Category> categories) {
-    return CategoriesState(
-      coreCategories: categories,
-      professionalCategories: professionalCategories,
-      isLoading: false,
-      error: null,
-    );
+/// Notifier for core categories
+class CategoriesNotifier extends StateNotifier<CategoriesState> {
+  final SupabaseClient _supabase;
+
+  CategoriesNotifier(this._supabase) : super(const CategoriesState()) {
+    fetchCategories();
   }
 
-  /// Create a state with updated professional categories
-  CategoriesState withProfessionalCategories(List<Category> categories) {
-    return CategoriesState(
-      coreCategories: coreCategories,
-      professionalCategories: categories,
-      isLoading: false,
-      error: null,
-    );
+  /// Fetch categories from Supabase
+  Future<void> fetchCategories() async {
+    try {
+      state = state.copyWith(isLoading: true, error: null);
+
+      // Fetch categories from Supabase
+      final response = await _supabase.from('categories').select().order('id');
+
+      // Parse response
+      final categories = (response as List)
+          .map((json) => Category.fromJson(json))
+          .toList();
+
+      state = state.copyWith(
+        categories: categories,
+        isLoading: false,
+      );
+    } catch (e, st) {
+      Logger.error('Failed to fetch categories', e, st);
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      );
+    }
   }
 
-  /// Get all categories (core + professional)
-  List<Category> get allCategories => [...coreCategories, ...professionalCategories];
-
-  /// Check if a category exists by ID
-  bool hasCategory(int id) {
-    return allCategories.any((category) => category.id == id);
-  }
-
-  /// Get a category by ID
+  /// Get category by ID
   Category? getCategoryById(int id) {
     try {
-      return allCategories.firstWhere((category) => category.id == id);
+      return state.categories.firstWhere((category) => category.id == id);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Get category by name
+  Category? getCategoryByName(String name) {
+    try {
+      return state.categories.firstWhere(
+        (category) => category.name.toLowerCase() == name.toLowerCase(),
+      );
     } catch (e) {
       return null;
     }
   }
 }
 
-/// Categories notifier for state management
-class CategoriesNotifier extends StateNotifier<CategoriesState> {
+/// Notifier for professional categories
+class ProfessionalCategoriesNotifier extends StateNotifier<ProfessionalCategoriesState> {
   final SupabaseClient _supabase;
-  final String? _userId;
+  final String userId;
 
-  CategoriesNotifier(this._supabase, this._userId) : super(const CategoriesState()) {
-    // Load categories on initialization
-    if (_userId != null) {
-      fetchAllCategories();
-    }
-  }
-
-  /// Fetch all categories (core + professional)
-  Future<void> fetchAllCategories() async {
-    await Future.wait([
-      fetchCoreCategories(),
-      fetchProfessionalCategories(),
-    ]);
-  }
-
-  /// Fetch core categories from Supabase
-  Future<void> fetchCoreCategories() async {
-    try {
-      state = state.loading();
-
-      final response = await _supabase
-          .from('categories')
-          .select()
-          .order('id', ascending: true);
-
-      if (response == null) {
-        state = state.withError('Failed to load categories');
-        return;
-      }
-
-      final categories = List<Map<String, dynamic>>.from(response)
-          .map((data) => Category.fromJson(data))
-          .toList();
-
-      state = state.withCoreCategories(categories);
-    } catch (e, st) {
-      Logger.error('Failed to fetch core categories', e, st);
-      state = state.withError('Failed to load categories: ${e.toString()}');
-    }
+  ProfessionalCategoriesNotifier(this._supabase, this.userId)
+      : super(const ProfessionalCategoriesState()) {
+    fetchProfessionalCategories();
   }
 
   /// Fetch professional categories from Supabase
   Future<void> fetchProfessionalCategories() async {
-    if (_userId == null) return;
-
     try {
+      state = state.copyWith(isLoading: true, error: null);
+
+      // Fetch professional categories with entity count
       final response = await _supabase
-          .from('professional_categories')
-          .select()
-          .eq('user_id', _userId)
-          .order('name', ascending: true);
+          .rpc('get_professional_categories_with_count', params: {
+        'user_id_param': userId,
+      });
 
-      if (response == null) {
-        return;
-      }
-
-      final categories = List<Map<String, dynamic>>.from(response)
-          .map((data) => Category.fromProfessionalJson(data))
+      // Parse response
+      final categories = (response as List)
+          .map((json) => ProfessionalCategory.fromJson(json))
           .toList();
 
-      state = state.withProfessionalCategories(categories);
+      state = state.copyWith(
+        categories: categories,
+        isLoading: false,
+      );
     } catch (e, st) {
       Logger.error('Failed to fetch professional categories', e, st);
-      // Don't update error state here to avoid overriding core categories error
+      
+      // Try fallback method if RPC fails
+      try {
+        // Fetch just the categories without counts
+        final response = await _supabase
+            .from('professional_categories')
+            .select()
+            .eq('user_id', userId)
+            .order('name');
+
+        // Parse response
+        final categories = (response as List)
+            .map((json) => ProfessionalCategory.fromJson(json))
+            .toList();
+
+        state = state.copyWith(
+          categories: categories,
+          isLoading: false,
+        );
+      } catch (fallbackError, fallbackSt) {
+        Logger.error('Fallback fetch also failed', fallbackError, fallbackSt);
+        state = state.copyWith(
+          isLoading: false,
+          error: e.toString(),
+        );
+      }
     }
   }
 
   /// Create a new professional category
   Future<void> createProfessionalCategory(String name) async {
-    if (_userId == null) return;
-
     try {
-      state = state.loading();
+      state = state.copyWith(isLoading: true, error: null);
 
-      final data = {
+      // Create new professional category
+      final response = await _supabase.from('professional_categories').insert({
+        'user_id': userId,
         'name': name,
-        'user_id': _userId,
-      };
+      }).select().single();
 
-      final response = await _supabase
-          .from('professional_categories')
-          .insert(data)
-          .select()
-          .single();
-
-      if (response == null) {
-        state = state.withError('Failed to create category');
-        return;
-      }
-
-      final newCategory = Category.fromProfessionalJson(response);
-      final updatedCategories = [...state.professionalCategories, newCategory];
-
-      state = state.withProfessionalCategories(updatedCategories);
+      // Add to state
+      final newCategory = ProfessionalCategory.fromJson(response);
+      state = state.copyWith(
+        categories: [...state.categories, newCategory],
+        isLoading: false,
+      );
     } catch (e, st) {
       Logger.error('Failed to create professional category', e, st);
-      state = state.withError('Failed to create category: ${e.toString()}');
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      );
     }
   }
 
   /// Update a professional category
   Future<void> updateProfessionalCategory(int id, String name) async {
-    if (_userId == null) return;
-
     try {
-      state = state.loading();
+      state = state.copyWith(isLoading: true, error: null);
 
-      final data = {
-        'name': name,
-      };
-
+      // Update professional category
       await _supabase
           .from('professional_categories')
-          .update(data)
+          .update({'name': name})
           .eq('id', id)
-          .eq('user_id', _userId);
+          .eq('user_id', userId);
 
-      // Update the category in the state
-      final updatedCategories = state.professionalCategories.map((category) {
+      // Update in state
+      final updatedCategories = state.categories.map((category) {
         if (category.id == id) {
-          return Category(
-            id: category.id,
-            name: name,
-            readableName: name,
-            icon: category.icon,
-            color: category.color,
-            isProfessional: true,
-            userId: category.userId,
-          );
+          return category.copyWith(name: name);
         }
         return category;
       }).toList();
 
-      state = state.withProfessionalCategories(updatedCategories);
+      state = state.copyWith(
+        categories: updatedCategories,
+        isLoading: false,
+      );
     } catch (e, st) {
       Logger.error('Failed to update professional category', e, st);
-      state = state.withError('Failed to update category: ${e.toString()}');
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      );
     }
   }
 
   /// Delete a professional category
   Future<void> deleteProfessionalCategory(int id) async {
-    if (_userId == null) return;
-
     try {
-      state = state.loading();
+      state = state.copyWith(isLoading: true, error: null);
 
+      // Delete professional category
       await _supabase
           .from('professional_categories')
           .delete()
           .eq('id', id)
-          .eq('user_id', _userId);
+          .eq('user_id', userId);
 
-      // Remove the category from the state
-      final updatedCategories = state.professionalCategories
+      // Remove from state
+      final updatedCategories = state.categories
           .where((category) => category.id != id)
           .toList();
 
-      state = state.withProfessionalCategories(updatedCategories);
+      state = state.copyWith(
+        categories: updatedCategories,
+        isLoading: false,
+      );
     } catch (e, st) {
       Logger.error('Failed to delete professional category', e, st);
-      state = state.withError('Failed to delete category: ${e.toString()}');
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      );
     }
   }
 
-  /// Get category by ID (core or professional)
-  Category? getCategoryById(int id) {
-    return state.getCategoryById(id);
+  /// Get professional category by ID
+  ProfessionalCategory? getProfessionalCategoryById(int id) {
+    try {
+      return state.categories.firstWhere((category) => category.id == id);
+    } catch (e) {
+      return null;
+    }
   }
-
-  /// Check if a category exists
-  bool hasCategory(int id) {
-    return state.hasCategory(id);
-  }
-
-  /// Get all categories (core + professional)
-  List<Category> get allCategories => state.allCategories;
 }
 
-/// Categories provider
+/// Provider for core categories
 final categoriesProvider = StateNotifierProvider<CategoriesNotifier, CategoriesState>((ref) {
+  return CategoriesNotifier(Supabase.instance.client);
+});
+
+/// Provider for professional categories
+final professionalCategoriesProvider = StateNotifierProvider<ProfessionalCategoriesNotifier, ProfessionalCategoriesState>((ref) {
   final userId = ref.watch(userIdProvider);
-  return CategoriesNotifier(Supabase.instance.client, userId);
+  if (userId == null) {
+    throw Exception('User ID is null, cannot fetch professional categories');
+  }
+  return ProfessionalCategoriesNotifier(Supabase.instance.client, userId);
 });
 
-/// Convenience providers
-final allCategoriesProvider = Provider<List<Category>>((ref) {
-  return ref.watch(categoriesProvider).allCategories;
-});
-
-final coreCategoriesProvider = Provider<List<Category>>((ref) {
-  return ref.watch(categoriesProvider).coreCategories;
-});
-
-final professionalCategoriesProvider = Provider<List<Category>>((ref) {
-  return ref.watch(categoriesProvider).professionalCategories;
-});
-
-final categoriesLoadingProvider = Provider<bool>((ref) {
-  return ref.watch(categoriesProvider).isLoading;
-});
-
-final categoriesErrorProvider = Provider<String?>((ref) {
-  return ref.watch(categoriesProvider).error;
-});
-
-/// Provider to get a category by ID
+/// Provider for a specific category by ID
 final categoryByIdProvider = Provider.family<Category?, int>((ref, id) {
-  return ref.watch(categoriesProvider).getCategoryById(id);
+  return ref.watch(categoriesProvider.notifier).getCategoryById(id);
+});
+
+/// Provider for entities count by category
+final entityCountByCategoryProvider = FutureProvider.family<int, int>((ref, categoryId) async {
+  final supabase = Supabase.instance.client;
+  try {
+    final response = await supabase.rpc(
+      'get_entity_count_by_category',
+      params: {'category_id_param': categoryId},
+    );
+    return response as int? ?? 0;
+  } catch (e, st) {
+    Logger.error('Failed to get entity count for category $categoryId', e, st);
+    return 0;
+  }
 });

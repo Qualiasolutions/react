@@ -7,72 +7,15 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import 'package:vuet_flutter/core/utils/logger.dart';
+import 'package:vuet_flutter/data/models/task_model.dart';
+import 'package:vuet_flutter/features/tasks/providers/tasks_provider.dart';
 
 // Sample task data provider (would be replaced with real data from Supabase)
 final selectedDateProvider = StateProvider<DateTime>((ref) => DateTime.now());
-final tasksProvider = Provider<List<TaskItem>>((ref) {
-  final selectedDate = ref.watch(selectedDateProvider);
-  // Sample tasks - in real app would come from Supabase
-  return [
-    TaskItem(
-      id: '1',
-      title: 'Task: Do research about X',
-      dateTime: DateTime.now(),
-      type: TaskType.task,
-    ),
-    TaskItem(
-      id: '2',
-      title: 'Appointment: doctor',
-      dateTime: DateTime.now().add(const Duration(hours: 2)),
-      type: TaskType.appointment,
-    ),
-  ];
-});
-
-// Task type enum
-enum TaskType { task, appointment, dueDate, flight }
-
-// Task item model
-class TaskItem {
-  final String id;
-  final String title;
-  final DateTime dateTime;
-  final TaskType type;
-
-  TaskItem({
-    required this.id,
-    required this.title,
-    required this.dateTime,
-    required this.type,
-  });
-
-  // Get color based on task type
-  Color get color {
-    switch (type) {
-      case TaskType.task:
-        return const Color(0xFF4CAF50); // Green
-      case TaskType.appointment:
-        return const Color(0xFF9C27B0); // Purple
-      case TaskType.dueDate:
-        return const Color(0xFFF44336); // Red
-      case TaskType.flight:
-        return const Color(0xFF2196F3); // Blue
-    }
-  }
-
-  // Get icon based on task type
-  IconData get icon {
-    switch (type) {
-      case TaskType.task:
-        return Icons.check_circle_outline;
-      case TaskType.appointment:
-        return Icons.person;
-      case TaskType.dueDate:
-        return Icons.event;
-      case TaskType.flight:
-        return Icons.flight;
-    }
-  }
+// helper extension to compare only y/m/d
+extension _SameDay on DateTime {
+  bool isSameDay(DateTime other) =>
+      year == other.year && month == other.month && day == other.day;
 }
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -94,12 +37,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // Initial task fetch
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(tasksProvider.notifier).fetchTasks(forceRefresh: true);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final selectedDate = ref.watch(selectedDateProvider);
-    final tasks = ref.watch(tasksProvider);
+    final tasksState = ref.watch(tasksProvider);
+    final tasks = tasksState.tasks;
+
+    // Build a map of events for TableCalendar
+    final Map<DateTime, List<TaskModel>> events = {};
+    for (final t in tasks) {
+      if (t.dueDate != null) {
+        final key = DateTime.utc(t.dueDate!.year, t.dueDate!.month, t.dueDate!.day);
+        events.putIfAbsent(key, () => []).add(t);
+      }
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => Navigator.of(context).pushNamed('/tasks/new'),
+        backgroundColor: const Color(0xFFD2691E),
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -192,6 +159,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             onDaySelected: (selectedDay, focusedDay) {
               ref.read(selectedDateProvider.notifier).state = selectedDay;
             },
+            eventLoader: (day) {
+              final key = DateTime.utc(day.year, day.month, day.day);
+              return events[key] ?? [];
+            },
             onFormatChanged: (format) {
               setState(() {
                 _calendarFormat = format;
@@ -231,6 +202,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 color: Color(0xFF2196F3),
                 shape: BoxShape.circle,
               ),
+              markersMaxCount: 3,
+            ),
+            calendarBuilders: CalendarBuilders(
+              markerBuilder: (context, date, tasksForDay) {
+                if (tasksForDay.isEmpty) return const SizedBox.shrink();
+                return Positioned(
+                  bottom: 2,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      tasksForDay.length > 3 ? 3 : tasksForDay.length,
+                      (index) => Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 0.5),
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(0xFF2196F3),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
             daysOfWeekStyle: DaysOfWeekStyle(
               weekdayStyle: TextStyle(
@@ -320,9 +315,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    itemCount: tasks.length,
+                    itemCount: tasks
+                        .where((t) =>
+                            t.dueDate != null &&
+                            t.dueDate!.isSameDay(selectedDate))
+                        .length,
                     itemBuilder: (context, index) {
-                      final task = tasks[index];
+                      final todays = tasks.where((t) =>
+                          t.dueDate != null &&
+                          t.dueDate!.isSameDay(selectedDate)).toList();
+                      final task = todays[index];
                       return TaskListItem(task: task);
                     },
                   ),
@@ -338,7 +340,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
 // Task list item widget
 class TaskListItem extends StatelessWidget {
-  final TaskItem task;
+  final TaskModel task;
   
   const TaskListItem({
     Key? key,
@@ -389,7 +391,7 @@ class TaskListItem extends StatelessWidget {
               width: 4.w,
               height: 40.h,
               decoration: BoxDecoration(
-                color: task.color,
+                color: _typeColor(task.type),
                 borderRadius: BorderRadius.circular(2.r),
               ),
             ),
@@ -401,7 +403,7 @@ class TaskListItem extends StatelessWidget {
                 children: [
                   // Task type
                   Text(
-                    task.type.toString().split('.').last.capitalize(),
+                    task.type.toDbString().toLowerCase().capitalize(),
                     style: TextStyle(
                       fontSize: 12.sp,
                       color: task.color,
@@ -438,5 +440,19 @@ class TaskListItem extends StatelessWidget {
 extension StringExtension on String {
   String capitalize() {
     return "${this[0].toUpperCase()}${substring(1).toLowerCase()}";
+  }
+
+Color _typeColor(TaskType type) {
+  switch (type) {
+    case TaskType.task:
+      return const Color(0xFF4CAF50);
+    case TaskType.appointment:
+      return const Color(0xFF9C27B0);
+    case TaskType.dueDate:
+      return const Color(0xFFF44336);
+    case TaskType.flight:
+      return const Color(0xFF2196F3);
+    default:
+      return Colors.grey;
   }
 }
